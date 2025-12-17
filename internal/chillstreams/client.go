@@ -25,16 +25,8 @@ func NewClient(baseURL, apiKey string) *Client {
 
 // GetPoolKey fetches assigned pool key for user
 func (c *Client) GetPoolKey(ctx context.Context, req GetPoolKeyRequest) (*GetPoolKeyResponse, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/internal/pool/get-key", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
+	body, _ := json.Marshal(req)
+	httpReq, _ := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/internal/pool/get-key", bytes.NewReader(body))
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
@@ -50,7 +42,7 @@ func (c *Client) GetPoolKey(ctx context.Context, req GetPoolKeyRequest) (*GetPoo
 
 	var result GetPoolKeyResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, err
 	}
 
 	return &result, nil
@@ -58,22 +50,14 @@ func (c *Client) GetPoolKey(ctx context.Context, req GetPoolKeyRequest) (*GetPoo
 
 // LogUsage logs pool key usage to Chillstreams
 func (c *Client) LogUsage(ctx context.Context, req LogUsageRequest) error {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/internal/pool/log-usage", bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
+	body, _ := json.Marshal(req)
+	httpReq, _ := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/internal/pool/log-usage", bytes.NewReader(body))
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
-		return fmt.Errorf("failed to call chillstreams: %w", err)
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -88,12 +72,12 @@ type GetPoolKeyRequest struct {
 	UserID   string `json:"userId"`
 	DeviceID string `json:"deviceId"`
 	Action   string `json:"action"`
-	Hash     string `json:"hash,omitempty"`
+	Hash     string `json:"hash"`
 }
 
 type GetPoolKeyResponse struct {
 	PoolKey     string `json:"poolKey"`
-	PoolKeyID   string `json:"poolKeyId,omitempty"`
+	PoolKeyID   string `json:"poolKeyId"`
 	Allowed     bool   `json:"allowed"`
 	DeviceCount int    `json:"deviceCount"`
 	Message     string `json:"message,omitempty"`
@@ -101,10 +85,10 @@ type GetPoolKeyResponse struct {
 
 type LogUsageRequest struct {
 	UserID    string `json:"userId"`
-	PoolKeyID string `json:"poolKeyId,omitempty"`
+	PoolKeyID string `json:"poolKeyId"`
 	Action    string `json:"action"`
-	Hash      string `json:"hash,omitempty"`
-	Cached    bool   `json:"cached,omitempty"`
-	Bytes     int64  `json:"bytes,omitempty"`
+	Hash      string `json:"hash"`
+	Cached    bool   `json:"cached"`
+	Bytes     int64  `json:"bytes"`
 }
 

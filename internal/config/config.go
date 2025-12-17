@@ -364,6 +364,7 @@ type Config struct {
 	LogFormat string
 
 	Port                        string
+	BaseURL                     *url.URL
 	StoreAuthToken              StoreAuthTokenMap
 	ProxyAuthPassword           UserPasswordMap
 	AuthAdmin                   AuthAdminMap
@@ -586,11 +587,17 @@ var config = func() Config {
 		peerFlag.Lazy = true
 	}
 
+	baseURL, err := url.Parse(getEnv("STREMTHRU_BASE_URL"))
+	if err != nil {
+		log.Fatalf("failed to parse base URL: %v", err)
+	}
+
 	return Config{
 		LogLevel:  logLevel,
 		LogFormat: logFormat,
 
 		Port:                        getEnv("STREMTHRU_PORT"),
+		BaseURL:                     baseURL,
 		ProxyAuthPassword:           proxyAuthPasswordMap,
 		AuthAdmin:                   authAdminMap,
 		AdminPassword:               adminPasswordMap,
@@ -621,10 +628,24 @@ var config = func() Config {
 	}
 }()
 
+// Initialize Integration config (empty/stub for now)
+func init() {
+	Integration = &IntegrationConfig{}
+
+	// Initialize Chillstreams config
+	ChillstreamsAPIURL = getEnv("CHILLSTREAMS_API_URL")
+	if ChillstreamsAPIURL == "" {
+		ChillstreamsAPIURL = "http://localhost:3000"
+	}
+	ChillstreamsAPIKey = getEnv("CHILLSTREAMS_API_KEY")
+	EnableChillstreamsAuth = getEnv("ENABLE_CHILLSTREAMS_AUTH") == "true"
+}
+
 var LogLevel = config.LogLevel
 var LogFormat = config.LogFormat
 
 var Port = config.Port
+var BaseURL = config.BaseURL
 var ProxyAuthPassword = config.ProxyAuthPassword
 var AuthAdmin = config.AuthAdmin
 var AdminPassword = config.AdminPassword

@@ -10,7 +10,6 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/device"
 	"github.com/MunifTanjim/stremthru/internal/logger"
-	"github.com/MunifTanjim/stremthru/store"
 	"github.com/MunifTanjim/stremthru/store/torbox"
 )
 
