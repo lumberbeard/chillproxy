@@ -1,0 +1,9 @@
+﻿{
+  "name": "chillproxy-mock-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Mock Chillstreams API for testing chillproxy",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

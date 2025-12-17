@@ -29,6 +29,7 @@ func (sc StoreCode) IsP2P() bool {
 type Store struct {
 	Code  StoreCode `json:"c"`
 	Token string    `json:"t"`
+	Auth  string    `json:"auth,omitempty"` // NEW: Chillstreams user UUID
 }
 
 type UserDataStores struct {
@@ -48,7 +49,8 @@ func (ud UserDataStores) HasRequiredValues() bool {
 		if (s.Code.IsStremThru() || s.Code.IsP2P()) && storeCount > 1 {
 			return false
 		}
-		if !s.Code.IsP2P() && s.Token == "" {
+		// Allow either Token (legacy) or Auth (Chillstreams) for non-P2P stores
+		if !s.Code.IsP2P() && s.Token == "" && s.Auth == "" {
 			return false
 		}
 	}
@@ -77,6 +79,17 @@ func (ud *UserDataStores) Prepare(ctx *context.StoreContext) (err error, errFiel
 	if storeCount == 0 {
 		return errors.New("missing store"), "store"
 	}
+
+	// Validate auth field format if present (Chillstreams integration)
+	for i := range ud.Stores {
+		s := &ud.Stores[i]
+		if s.Auth != "" {
+			if !core.IsValidUUID(s.Auth) {
+				return errors.New("invalid auth format, expected UUID"), "auth"
+			}
+		}
+	}
+
 	if storeCount == 1 && ud.Stores[0].Code.IsStremThru() {
 		token := ud.Stores[0].Token
 		auth, err := core.ParseBasicAuth(token)
@@ -111,8 +124,9 @@ func (ud *UserDataStores) Prepare(ctx *context.StoreContext) (err error, errFiel
 		for i := range ud.Stores {
 			s := &ud.Stores[i]
 			stores[i] = resolvedStore{
-				Store:     shared.GetStore(string(store.StoreCode(s.Code).Name())),
-				AuthToken: s.Token,
+				Store:            shared.GetStore(string(store.StoreCode(s.Code).Name())),
+				AuthToken:        s.Token,
+				ChillstreamsAuth: s.Auth, // Store for later resolution
 			}
 		}
 		ud.stores = stores
@@ -147,8 +161,10 @@ func (ud *UserDataStores) GetStoreByCode(code string) *resolvedStore {
 }
 
 type resolvedStore struct {
-	Store     store.Store
-	AuthToken string
+	Store            store.Store
+	AuthToken        string
+	ChillstreamsAuth string // Chillstreams user UUID (if using auth)
+	PoolKeyID        string // Pool key ID for usage logging
 }
 
 type storesResult[T any] struct {

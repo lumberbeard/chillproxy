@@ -148,9 +148,16 @@ func (ud *UserData) GetRequestContext(r *http.Request) (*RequestContext, error) 
 			return ctx, &userDataError{storeCode: []string{err.Error()}}
 		case "token":
 			return ctx, &userDataError{storeToken: []string{err.Error()}}
+		case "auth":
+			return ctx, &userDataError{storeToken: []string{err.Error()}}
 		default:
 			return ctx, &userDataError{storeCode: []string{err.Error()}}
 		}
+	}
+
+	// Initialize stores with Chillstreams pool keys if needed
+	if err := ud.UserDataStores.InitializeStoresWithChillstreams(r, ctx.Log); err != nil {
+		return ctx, &userDataError{storeToken: []string{err.Error()}}
 	}
 
 	if !ud.HasStores() && !ud.IsP2P() {

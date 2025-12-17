@@ -65,6 +65,16 @@ func (c *StoreClient) GetName() store.StoreName {
 	return c.Name
 }
 
+// SetAPIKey sets the API key dynamically (for Chillstreams pool key injection)
+func (c *StoreClient) SetAPIKey(apiKey string) {
+	c.client.apiKey = apiKey
+}
+
+// GetAPIKey returns the current API key (for validation/logging)
+func (c *StoreClient) GetAPIKey() string {
+	return c.client.apiKey
+}
+
 func (c *StoreClient) getCachedGetUser(params *store.GetUserParams) *store.User {
 	v := &store.User{}
 	if c.getUserCache.Get(params.GetAPIKey(c.client.apiKey), v) {

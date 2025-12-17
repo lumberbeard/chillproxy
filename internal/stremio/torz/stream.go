@@ -13,7 +13,9 @@ import (
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/anidb"
 	"github.com/MunifTanjim/stremthru/internal/buddy"
+	"github.com/MunifTanjim/stremthru/internal/chillstreams"
 	"github.com/MunifTanjim/stremthru/internal/config"
+	"github.com/MunifTanjim/stremthru/internal/device"
 	"github.com/MunifTanjim/stremthru/internal/imdb_title"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
@@ -204,8 +206,8 @@ func GetStreamsFromIndexers(ctx *RequestContext, stremType, stremId string) ([]W
 							q.WriteString(util.ZeroPadInt(queryMeta.ep, 2))
 						}
 						sQueries = append(sQueries, indexerSearchQuery{
-							indexer: indexer,
-							query:   query.Clone().Set(tznc.SearchParamQ, q.String()),
+						 indexer: indexer,
+						 query:   query.Clone().Set(tznc.SearchParamQ, q.String()),
 						})
 					}
 				} else if queryMeta.year > 0 {
