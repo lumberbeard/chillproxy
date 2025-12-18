@@ -28,31 +28,40 @@ func getChillstreamsClient() *chillstreams.Client {
 
 // InitializeStoresWithChillstreams fetches pool keys from Chillstreams and injects them into stores
 func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log *logger.Logger) error {
-	log.Info("checking chillstreams auth enabled", "enabled", config.EnableChillstreamsAuth)
+	// Explicit logging that will definitely show up
+	fmt.Printf("\n=== CHILLSTREAMS INTEGRATION DEBUG START ===\n")
+	fmt.Printf("EnableChillstreamsAuth: %v\n", config.EnableChillstreamsAuth)
+	fmt.Printf("ChillstreamsAPIURL: %s\n", config.ChillstreamsAPIURL)
+	fmt.Printf("ChillstreamsAPIKey: %s\n", config.ChillstreamsAPIKey)
+	fmt.Printf("=== CHILLSTREAMS INTEGRATION DEBUG END ===\n\n")
+
+	log.Info("🔵 [CHILLSTREAMS] Checking integration enabled", "enabled", config.EnableChillstreamsAuth, "apiURL", config.ChillstreamsAPIURL)
 
 	if !config.EnableChillstreamsAuth {
+		log.Info("🔵 [CHILLSTREAMS] Auth disabled, skipping")
 		return nil
 	}
 
 	client := getChillstreamsClient()
 	if client == nil {
-		log.Warn("chillstreams client not initialized (missing API key)")
+		log.Warn("🔵 [CHILLSTREAMS] Client is nil (not configured properly)")
 		return nil // Chillstreams not configured, skip
 	}
 
+	log.Info("🔵 [CHILLSTREAMS] Client initialized successfully")
 	deviceID := device.GenerateDeviceID(r)
-	log.Debug("generated device id", "deviceId", deviceID)
+	log.Debug("🔵 [CHILLSTREAMS] Generated device id", "deviceId", deviceID)
 
 	for i := range ud.stores {
 		s := &ud.stores[i]
-		log.Debug("checking store for chillstreams auth", "store", s.Store.GetName(), "chillstreamsAuth", s.ChillstreamsAuth)
+		log.Debug("🔵 [CHILLSTREAMS] Checking store", "store", s.Store.GetName(), "hasAuth", s.ChillstreamsAuth != "")
 
 		if s.ChillstreamsAuth == "" {
-			log.Debug("no chillstreams auth for this store", "store", s.Store.GetName())
+			log.Debug("🔵 [CHILLSTREAMS] No chillstreams auth for this store", "store", s.Store.GetName())
 			continue // No Chillstreams auth for this store
 		}
 
-		log.Info("requesting pool key from chillstreams", "userId", s.ChillstreamsAuth, "store", s.Store.GetName())
+		log.Info("🔵 [CHILLSTREAMS] Requesting pool key", "userId", s.ChillstreamsAuth, "store", s.Store.GetName())
 
 		// Fetch pool key from Chillstreams
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -65,12 +74,12 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 		})
 
 		if err != nil {
-			log.Error("failed to get pool key from chillstreams", "error", err, "userId", s.ChillstreamsAuth)
+			log.Error("🔵 [CHILLSTREAMS] Failed to get pool key", "error", err, "userId", s.ChillstreamsAuth)
 			return fmt.Errorf("chillstreams authentication failed: %w", err)
 		}
 
 		if !resp.Allowed {
-			log.Warn("user not allowed by chillstreams", "userId", s.ChillstreamsAuth, "message", resp.Message)
+			log.Warn("🔵 [CHILLSTREAMS] User not allowed", "userId", s.ChillstreamsAuth, "message", resp.Message)
 			return fmt.Errorf("authentication failed: %s", resp.Message)
 		}
 
@@ -83,13 +92,13 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 			case *torbox.StoreClient:
 				client.SetAPIKey(resp.PoolKey)
 				s.AuthToken = resp.PoolKey // Update auth token for other methods
-				log.Info("✅ injected pool key for torbox", "userId", s.ChillstreamsAuth, "poolKeyId", resp.PoolKeyID, "deviceCount", resp.DeviceCount)
+				log.Info("💛 TORPOOL 💛 Injected pool key for TorBox", "userId", s.ChillstreamsAuth, "poolKeyId", resp.PoolKeyID, "deviceCount", resp.DeviceCount)
 			default:
-				log.Warn("chillstreams auth not supported for this store type", "store", s.Store.GetName())
+				log.Warn("🔵 [CHILLSTREAMS] Auth not supported for this store type", "store", s.Store.GetName())
 			}
 		}
 
-		log.Info("💛 TORPOOL 💛 chillstreams initialization complete", "userId", s.ChillstreamsAuth, "store", s.Store.GetName())
+		log.Info("💛 TORPOOL 💛 Chillstreams initialization complete", "userId", s.ChillstreamsAuth, "store", s.Store.GetName())
 
 	}
 
