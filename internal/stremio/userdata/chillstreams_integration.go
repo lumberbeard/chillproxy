@@ -28,40 +28,35 @@ func getChillstreamsClient() *chillstreams.Client {
 
 // InitializeStoresWithChillstreams fetches pool keys from Chillstreams and injects them into stores
 func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log *logger.Logger) error {
-	// Explicit logging that will definitely show up
-	fmt.Printf("\n=== CHILLSTREAMS INTEGRATION DEBUG START ===\n")
-	fmt.Printf("EnableChillstreamsAuth: %v\n", config.EnableChillstreamsAuth)
-	fmt.Printf("ChillstreamsAPIURL: %s\n", config.ChillstreamsAPIURL)
-	fmt.Printf("ChillstreamsAPIKey: %s\n", config.ChillstreamsAPIKey)
-	fmt.Printf("=== CHILLSTREAMS INTEGRATION DEBUG END ===\n\n")
-
-	log.Info("🔵 [CHILLSTREAMS] Checking integration enabled", "enabled", config.EnableChillstreamsAuth, "apiURL", config.ChillstreamsAPIURL)
+	// Log using the standard chillproxy logging pattern
+	log.Info("chillstreams config check", "enableAuth", config.EnableChillstreamsAuth, "apiURL", config.ChillstreamsAPIURL, "hasAPIKey", config.ChillstreamsAPIKey != "")
 
 	if !config.EnableChillstreamsAuth {
-		log.Info("🔵 [CHILLSTREAMS] Auth disabled, skipping")
+		log.Debug("chillstreams auth disabled, skipping")
 		return nil
 	}
 
 	client := getChillstreamsClient()
 	if client == nil {
-		log.Warn("🔵 [CHILLSTREAMS] Client is nil (not configured properly)")
+		log.Debug("chillstreams client not initialized", "apiKeyEmpty", config.ChillstreamsAPIKey == "", "apiUrlEmpty", config.ChillstreamsAPIURL == "")
 		return nil // Chillstreams not configured, skip
 	}
 
-	log.Info("🔵 [CHILLSTREAMS] Client initialized successfully")
+	log.Info("chillstreams client ready")
 	deviceID := device.GenerateDeviceID(r)
-	log.Debug("🔵 [CHILLSTREAMS] Generated device id", "deviceId", deviceID)
+	log.Debug("device id generated", "deviceId", deviceID)
 
+	storeCount := 0
 	for i := range ud.stores {
 		s := &ud.stores[i]
-		log.Debug("🔵 [CHILLSTREAMS] Checking store", "store", s.Store.GetName(), "hasAuth", s.ChillstreamsAuth != "")
+		storeCount++
 
 		if s.ChillstreamsAuth == "" {
-			log.Debug("🔵 [CHILLSTREAMS] No chillstreams auth for this store", "store", s.Store.GetName())
+			log.Debug("store skipped - no chillstreams auth", "store", s.Store.GetName(), "index", i)
 			continue // No Chillstreams auth for this store
 		}
 
-		log.Info("🔵 [CHILLSTREAMS] Requesting pool key", "userId", s.ChillstreamsAuth, "store", s.Store.GetName())
+		log.Info("requesting chillstreams pool key", "userId", s.ChillstreamsAuth, "store", s.Store.GetName())
 
 		// Fetch pool key from Chillstreams
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -74,12 +69,12 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 		})
 
 		if err != nil {
-			log.Error("🔵 [CHILLSTREAMS] Failed to get pool key", "error", err, "userId", s.ChillstreamsAuth)
+			log.Error("failed to get chillstreams pool key", "error", err, "userId", s.ChillstreamsAuth)
 			return fmt.Errorf("chillstreams authentication failed: %w", err)
 		}
 
 		if !resp.Allowed {
-			log.Warn("🔵 [CHILLSTREAMS] User not allowed", "userId", s.ChillstreamsAuth, "message", resp.Message)
+			log.Warn("chillstreams user not allowed", "userId", s.ChillstreamsAuth, "message", resp.Message)
 			return fmt.Errorf("authentication failed: %s", resp.Message)
 		}
 
@@ -92,15 +87,15 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 			case *torbox.StoreClient:
 				client.SetAPIKey(resp.PoolKey)
 				s.AuthToken = resp.PoolKey // Update auth token for other methods
-				log.Info("💛 TORPOOL 💛 Injected pool key for TorBox", "userId", s.ChillstreamsAuth, "poolKeyId", resp.PoolKeyID, "deviceCount", resp.DeviceCount)
+				log.Info("💛 torpool pool key injected", "userId", s.ChillstreamsAuth, "poolKeyId", resp.PoolKeyID, "deviceCount", resp.DeviceCount, "store", s.Store.GetName())
 			default:
-				log.Warn("🔵 [CHILLSTREAMS] Auth not supported for this store type", "store", s.Store.GetName())
+				log.Debug("chillstreams auth not supported for this store type", "store", s.Store.GetName())
 			}
 		}
-
-		log.Info("💛 TORPOOL 💛 Chillstreams initialization complete", "userId", s.ChillstreamsAuth, "store", s.Store.GetName())
-
 	}
+
+	log.Debug("chillstreams initialization complete", "totalStores", storeCount)
+
 
 	return nil
 }

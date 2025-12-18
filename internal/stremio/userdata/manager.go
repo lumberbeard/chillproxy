@@ -48,6 +48,7 @@ func (m iManager[T]) decode(ud UserData[T]) error {
 	if err != nil {
 		return err
 	}
+
 	err = json.Unmarshal(blob, ud.Ptr())
 	if err != nil {
 		return err

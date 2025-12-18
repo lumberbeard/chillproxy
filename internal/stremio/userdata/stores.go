@@ -84,6 +84,7 @@ func (ud *UserDataStores) Prepare(ctx *context.StoreContext) (err error, errFiel
 	for i := range ud.Stores {
 		s := &ud.Stores[i]
 		if s.Auth != "" {
+			ctx.Log.Debug("store has chillstreams auth", "index", i, "code", s.Code, "auth", s.Auth)
 			if !core.IsValidUUID(s.Auth) {
 				return errors.New("invalid auth format, expected UUID"), "auth"
 			}
