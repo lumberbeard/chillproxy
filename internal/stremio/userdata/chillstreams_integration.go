@@ -28,22 +28,31 @@ func getChillstreamsClient() *chillstreams.Client {
 
 // InitializeStoresWithChillstreams fetches pool keys from Chillstreams and injects them into stores
 func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log *logger.Logger) error {
+	log.Info("checking chillstreams auth enabled", "enabled", config.EnableChillstreamsAuth)
+
 	if !config.EnableChillstreamsAuth {
 		return nil
 	}
 
 	client := getChillstreamsClient()
 	if client == nil {
+		log.Warn("chillstreams client not initialized (missing API key)")
 		return nil // Chillstreams not configured, skip
 	}
 
 	deviceID := device.GenerateDeviceID(r)
+	log.Debug("generated device id", "deviceId", deviceID)
 
 	for i := range ud.stores {
 		s := &ud.stores[i]
+		log.Debug("checking store for chillstreams auth", "store", s.Store.GetName(), "chillstreamsAuth", s.ChillstreamsAuth)
+
 		if s.ChillstreamsAuth == "" {
+			log.Debug("no chillstreams auth for this store", "store", s.Store.GetName())
 			continue // No Chillstreams auth for this store
 		}
+
+		log.Info("requesting pool key from chillstreams", "userId", s.ChillstreamsAuth, "store", s.Store.GetName())
 
 		// Fetch pool key from Chillstreams
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -74,11 +83,14 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 			case *torbox.StoreClient:
 				client.SetAPIKey(resp.PoolKey)
 				s.AuthToken = resp.PoolKey // Update auth token for other methods
-				log.Info("injected pool key for torbox", "userId", s.ChillstreamsAuth, "deviceCount", resp.DeviceCount)
+				log.Info("✅ injected pool key for torbox", "userId", s.ChillstreamsAuth, "poolKeyId", resp.PoolKeyID, "deviceCount", resp.DeviceCount)
 			default:
 				log.Warn("chillstreams auth not supported for this store type", "store", s.Store.GetName())
 			}
 		}
+
+		log.Info("💛 TORPOOL 💛 chillstreams initialization complete", "userId", s.ChillstreamsAuth, "store", s.Store.GetName())
+
 	}
 
 	return nil

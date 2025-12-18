@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  chillproxy:
+    image: chillproxy:latest
+    container_name: chillproxy
+    ports:
+      - "8080:8080"
+    environment:
+      # Server
+      - STREMTHRU_PORT=8080
+      - STREMTHRU_BASE_URL=http://localhost:8080
+      - STREMTHRU_ENV=prod
+
+      # Chillstreams Integration
+      - CHILLSTREAMS_API_URL=http://host.docker.internal:3000
+      - CHILLSTREAMS_API_KEY=test_internal_key_phase3_2025
+      - ENABLE_CHILLSTREAMS_AUTH=true
+
+      # Database
+      - STREMTHRU_DATABASE_URI=sqlite:///app/data/stremthru.db
+      - STREMTHRU_DATA_DIR=/app/data
+
+      # Features - only enable torz, disable unnecessary features
+      - STREMTHRU_FEATURE=stremio_torz,-dmm_hashlist,-imdb_title,-imdb_torrent,-anime
+
+      # Logging - Set to DEBUG to see Chillstreams integration logs
+      - STREMTHRU_LOG_LEVEL=DEBUG
+      - STREMTHRU_LOG_FORMAT=json
+      - STREMTHRU_LOG_FORMAT=json
+
+    volumes:
+      - chillproxy-data:/app/data
+    networks:
+      - chilltest
+    restart: unless-stopped
+
+volumes:
+  chillproxy-data:
+
+networks:
+  chilltest:
+    driver: bridge
+
