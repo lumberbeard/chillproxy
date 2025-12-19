@@ -166,6 +166,9 @@ func (ud *UserData) GetRequestContext(r *http.Request) (*RequestContext, error) 
 
 	ctx.ClientIP = shared.GetClientIP(r, ctx.StoreContext)
 
+	// Automatically inject Prowlarr indexer if configured
+	ud.UserDataIndexers.InjectProwlarrIndexer()
+
 	if indexers, err := ud.UserDataIndexers.Prepare(); err != nil {
 		return ctx, &userDataError{indexerURL: []string{err.Error()}}
 	} else {

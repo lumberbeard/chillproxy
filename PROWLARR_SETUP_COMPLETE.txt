@@ -1,0 +1,137 @@
+# Prowlarr Setup - Manual Configuration
+
+**Generated**: December 18, 2025
+**Your API Key**: `f963a60693dd49a08ff75188f9fc72d2`
+
+---
+
+## Your Configuration is Ready! ✅
+
+### Base64 Encoded Config
+```
+eyJpbmRleGVycyI6W3sidXJsIjoiaHR0cDovL2xvY2FsaG9zdDo5Njk2L2FwaS92Mi4wL2luZGV4ZXJzL2FsbC9yZXN1bHRzL3RvcnpuYWIiLCJhcGlLZXkiOiJmOTYzYTYwNjkzZGQ0OWEwOGZmNzUxODhmOWZjNzJkMiJ9XSwic3RvcmVzIjpbeyJjIjoidGIiLCJ0IjoiIiwiYXV0aCI6IjNiOTRjYjQ1LTNmOTktNDA2ZS05YzQwLWVjY2U2MWE0MDVjYyJ9XX0=
+```
+
+### Manifest URL
+```
+http://localhost:8080/stremio/torz/eyJpbmRleGVycyI6W3sidXJsIjoiaHR0cDovL2xvY2FsaG9zdDo5Njk2L2FwaS92Mi4wL2luZGV4ZXJzL2FsbC9yZXN1bHRzL3RvcnpuYWIiLCJhcGlLZXkiOiJmOTYzYTYwNjkzZGQ0OWEwOGZmNzUxODhmOWZjNzJkMiJ9XSwic3RvcmVzIjpbeyJjIjoidGIiLCJ0IjoiIiwiYXV0aCI6IjNiOTRjYjQ1LTNmOTktNDA2ZS05YzQwLWVjY2U2MWE0MDVjYyJ9XX0=/manifest.json
+```
+
+---
+
+## Next Steps
+
+### 1. Verify Prowlarr is Still Running
+```powershell
+Invoke-WebRequest -Uri "http://localhost:9696" -UseBasicParsing
+# Should return Status 200
+```
+
+### 2. Check Prowlarr Indexers
+Make sure these are **ENABLED** in Prowlarr:
+- ✅ YTS
+- ✅ EZTV
+- ✅ RARBG
+- ✅ The Pirate Bay
+- ✅ TorrentGalaxy
+
+Go to: `http://localhost:9696/settings/indexers`
+
+### 3. Test Prowlarr Search Directly
+
+```powershell
+$apiKey = "f963a60693dd49a08ff75188f9fc72d2"
+$url = "http://localhost:9696/api/v2.0/indexers/all/results/torznab?t=tvsearch&q=breaking+bad&season=1&ep=1&apikey=$apiKey"
+
+$r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+Write-Host "Status: $($r.StatusCode)"
+
+if ($r.StatusCode -eq 200) {
+    Write-Host "✅ Prowlarr search is working!"
+} else {
+    Write-Host "❌ Check indexers are enabled in Prowlarr"
+}
+```
+
+### 4. Verify Chillstreams is Running
+```powershell
+$r = Invoke-WebRequest -Uri "http://localhost:3000/api/v1/health" -UseBasicParsing
+Write-Host "Chillstreams Status: $($r.StatusCode)"
+# Should return 200
+```
+
+### 5. Test Chillproxy Manifest
+
+```powershell
+$config = "eyJpbmRleGVycyI6W3sidXJsIjoiaHR0cDovL2xvY2FsaG9zdDo5Njk2L2FwaS92Mi4wL2luZGV4ZXJzL2FsbC9yZXN1bHRzL3RvcnpuYWIiLCJhcGlLZXkiOiJmOTYzYTYwNjkzZGQ0OWEwOGZmNzUxODhmOWZjNzJkMiJ9XSwic3RvcmVzIjpbeyJjIjoidGIiLCJ0IjoiIiwiYXV0aCI6IjNiOTRjYjQ1LTNmOTktNDA2ZS05YzQwLWVjY2U2MWE0MDVjYyJ9XX0="
+
+$r = Invoke-WebRequest -Uri "http://localhost:8080/stremio/torz/$config/manifest.json" -UseBasicParsing
+Write-Host "Manifest Status: $($r.StatusCode)"
+
+if ($r.StatusCode -eq 200) {
+    $manifest = $r.Content | ConvertFrom-Json
+    Write-Host "✅ Manifest loaded!"
+    Write-Host "Addon: $($manifest.name)"
+} else {
+    Write-Host "❌ Manifest failed"
+}
+```
+
+### 6. Test Stream Search
+
+```powershell
+$config = "eyJpbmRleGVycyI6W3sidXJsIjoiaHR0cDovL2xvY2FsaG9zdDo5Njk2L2FwaS92Mi4wL2luZGV4ZXJzL2FsbC9yZXN1bHRzL3RvcnpuYWIiLCJhcGlLZXkiOiJmOTYzYTYwNjkzZGQ0OWEwOGZmNzUxODhmOWZjNzJkMiJ9XSwic3RvcmVzIjpbeyJjIjoidGIiLCJ0IjoiIiwiYXV0aCI6IjNiOTRjYjQ1LTNmOTktNDA2ZS05YzQwLWVjY2U2MWE0MDVjYyJ9XX0="
+
+# Breaking Bad S01E01
+$r = Invoke-WebRequest -Uri "http://localhost:8080/stremio/torz/$config/stream/series/tt0903747:1:1.json" -UseBasicParsing -TimeoutSec 15
+Write-Host "Search Status: $($r.StatusCode)"
+
+$streams = $r.Content | ConvertFrom-Json
+Write-Host "Found $($streams.streams.Count) results"
+
+if ($streams.streams.Count -gt 0) {
+    Write-Host "First result: $($streams.streams[0].title)"
+}
+```
+
+---
+
+## Troubleshooting
+
+### If Prowlarr search returns 0 results:
+1. Check indexers are enabled in Prowlarr UI
+2. Try searching manually in Prowlarr UI to verify it works
+3. Verify API key is correct
+
+### If Chillproxy returns error:
+1. Make sure Chillstreams is running on port 3000
+2. Make sure Chillproxy is running on port 8080
+3. Check that the base64 config is valid
+
+### If pool key error:
+1. Verify user exists: Check Chillstreams database
+2. Verify pool key exists: Check pool tables
+3. Verify user is assigned to pool key
+
+---
+
+## Ready to Add to Stremio
+
+Once testing above passes, you can add the manifest to Stremio:
+
+1. Open Stremio
+2. Settings → Add-ons
+3. Paste the Manifest URL
+4. Search for content and play
+
+---
+
+**Your Setup Info**:
+- Prowlarr: `http://localhost:9696`
+- Prowlarr API Key: `f963a60693dd49a08ff75188f9fc72d2`
+- Chillproxy: `http://localhost:8080`
+- Chillstreams: `http://localhost:3000`
+
+**Config File**: `prowlarr_config.txt` (in C:\chillproxy)
+
+

@@ -1,9 +1,29 @@
 [![GitHub Workflow Status: CI](https://img.shields.io/github/actions/workflow/status/MunifTanjim/stremthru/ci.yml?branch=main&label=CI&style=for-the-badge)](https://github.com/MunifTanjim/stremthru/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/MunifTanjim/stremthru?style=for-the-badge)](https://github.com/MunifTanjim/stremthru/blob/master/LICENSE)
 
-# StremThru
+# StremThru / Chillproxy
 
 Companion for Stremio.
+
+---
+
+## ⚠️ CRITICAL: BUILD WITH DOCKER
+
+**Chillproxy has CGO dependencies and MUST be built with Docker!**
+
+```powershell
+# ✅ CORRECT way to build:
+docker build -t chillproxy:latest .
+
+# ✅ CORRECT way to run:
+docker-compose up -d
+```
+
+**❌ DO NOT USE**: `go build`, `CGO_ENABLED=1`, or MinGW - they will FAIL!
+
+📖 See `BUILD_INSTRUCTIONS.md` for full details.
+
+---
 
 ## Features
 

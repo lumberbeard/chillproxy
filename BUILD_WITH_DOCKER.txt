@@ -1,0 +1,8 @@
+⚠️ CRITICAL: CHILLPROXY BUILDS WITH DOCKER ONLY
+
+DO NOT USE: go build, CGO_ENABLED, or MinGW
+
+USE: docker build -t chillproxy:latest .
+
+See BUILD_INSTRUCTIONS.md for details.
+

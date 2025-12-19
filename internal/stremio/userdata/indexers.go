@@ -14,8 +14,9 @@ import (
 type IndexerName string
 
 const (
-	IndexerNameGeneric IndexerName = "generic"
-	IndexerNameJackett IndexerName = "jackett"
+	IndexerNameGeneric   IndexerName = "generic"
+	IndexerNameJackett   IndexerName = "jackett"
+	IndexerNameProwlarr  IndexerName = "prowlarr"
 )
 
 type Indexer struct {
@@ -95,10 +96,42 @@ func (ud UserDataIndexers) StripSecrets() UserDataIndexers {
 	return ud
 }
 
-var jackettCache = cache.NewLRUCache[*jackett.Client](&cache.CacheConfig{
-	Lifetime: 2 * time.Hour,
+var jackettCache = cache.NewCache[*jackett.Client](&cache.CacheConfig{
+	Lifetime: 6 * time.Hour,
 	Name:     "stremio:userdata:indexers:jackett",
 })
+
+// prowlarrTorznabClient wraps torznab_client.Client to implement the Indexer interface
+type prowlarrTorznabClient struct {
+	*torznab_client.Client
+	id string
+}
+
+func (ptc *prowlarrTorznabClient) GetId() string {
+	return "prowlarr/" + ptc.id
+}
+
+func (ptc *prowlarrTorznabClient) Search(query *torznab_client.Query) ([]torznab_client.Torz, error) {
+	// Prowlarr uses the same Torznab protocol as Jackett
+	// We'll use jackett's search response type since Prowlarr implements the same protocol
+	params := &jackett.Ctx{}
+	q := query.Values()
+	params.Query = &q
+
+	var resp torznab_client.Response[jackett.SearchResponse]
+	_, err := ptc.Client.Request("GET", "/api", params, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	items := resp.Data.Channel.Items
+	result := make([]torznab_client.Torz, 0, len(items))
+	for i := range items {
+		item := &items[i]
+		result = append(result, *item.ToTorz())
+	}
+	return result, nil
+}
 
 func (ud *UserDataIndexers) Compress() {
 	for i := range ud.Indexers {
@@ -144,9 +177,28 @@ func (ud *UserDataIndexers) Prepare() ([]torznab_client.Indexer, error) {
 			c := client.GetTorznabClient(u.IndexerId)
 			indexers = append(indexers, c)
 
+		case IndexerNameProwlarr:
+			// Prowlarr acts as a Torznab indexer aggregator
+			// Use the base URL + /api/v2.0/indexers/all/results/torznab as the endpoint
+			torznabURL := baseURL + "/api/v2.0/indexers/all/results/torznab"
+
+			tc := torznab_client.NewClient(&torznab_client.ClientConfig{
+				BaseURL: torznabURL,
+				APIKey:  apiKey,
+			})
+
+			// Wrap the torznab client to implement the Indexer interface
+			client := &prowlarrTorznabClient{
+				Client: tc,
+				id:     "all",
+			}
+			indexers = append(indexers, client)
+
 		default:
 			return indexers, errors.New("unsupported indexer: " + string(indexer.Name))
 		}
 	}
 	return indexers, nil
 }
+
+
