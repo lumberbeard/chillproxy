@@ -1,6 +1,7 @@
 package stremio_torz
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -15,9 +16,11 @@ import (
 	"github.com/MunifTanjim/stremthru/internal/buddy"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/imdb_title"
+	"github.com/MunifTanjim/stremthru/internal/prowlarr"
 	"github.com/MunifTanjim/stremthru/internal/shared"
 	stremio_shared "github.com/MunifTanjim/stremthru/internal/stremio/shared"
 	stremio_transformer "github.com/MunifTanjim/stremthru/internal/stremio/transformer"
+	stremio_userdata "github.com/MunifTanjim/stremthru/internal/stremio/userdata"
 	"github.com/MunifTanjim/stremthru/internal/torrent_info"
 	"github.com/MunifTanjim/stremthru/internal/torrent_stream"
 	tznc "github.com/MunifTanjim/stremthru/internal/torznab/client"
@@ -30,6 +33,73 @@ import (
 
 var streamTemplate = stremio_transformer.StreamTemplateDefault
 var torzLazyPull = config.Stremio.Torz.LazyPull
+
+// logIndexerSearch logs an indexer search to the database for performance tracking
+func logIndexerSearch(indexerID, query string, duration time.Duration, httpStatus, resultsCount int, wasSuccessful bool, errorType, errorMsg string) {
+	if stremio_userdata.IndexerDB == nil {
+		log.Debug("IndexerDB is nil, skipping prowlarr logging", "indexerId", indexerID)
+		return
+	}
+
+	// Extract indexer name from ID (e.g., "prowlarr/all" -> "Prowlarr (All)" or "yts" -> "YTS")
+	displayName := indexerID
+	if strings.Contains(indexerID, "/") {
+		parts := strings.Split(indexerID, "/")
+		if len(parts) >= 2 {
+			// Handle Prowlarr format: "prowlarr/all" -> "Prowlarr (All)"
+			subName := strings.ToLower(parts[1])
+			if subName == "all" {
+				displayName = "Prowlarr (All)"
+			} else {
+				displayName = strings.ToUpper(parts[1])
+			}
+		}
+	} else {
+		// For direct indexer IDs, normalize them
+		lowered := strings.ToLower(indexerID)
+		switch lowered {
+		case "yts":
+			displayName = "YTS"
+		case "eztv":
+			displayName = "EZTV"
+		case "thepiratebay", "piratebay", "tpb":
+			displayName = "The Pirate Bay"
+		case "torrentgalaxy", "torrentgalaxyclone":
+			displayName = "TorrentGalaxyClone"
+		default:
+			// Capitalize first letter of each word
+			displayName = strings.ToUpper(lowered)
+		}
+	}
+
+	log.Info("logging indexer search",
+		"indexerId", indexerID,
+		"displayName", displayName,
+		"duration", duration.Milliseconds(),
+		"results", resultsCount,
+		"success", wasSuccessful)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := prowlarr.LogSearchToDatabase(ctx, stremio_userdata.IndexerDB, prowlarr.SearchLogParams{
+		IndexerName:   displayName,
+		SearchQuery:   query,
+		SearchType:    "torrent",
+		ResponseTime:  duration,
+		HTTPStatus:    httpStatus,
+		ResultsCount:  resultsCount,
+		WasSuccessful: wasSuccessful,
+		ErrorType:     errorType,
+		ErrorMessage:  errorMsg,
+	})
+
+	if err != nil {
+		log.Error("failed to log indexer search to database", "error", err, "indexerName", displayName)
+	} else {
+		log.Info("successfully logged indexer search to database", "indexerName", displayName, "results", resultsCount)
+	}
+}
 
 type WrappedStream struct {
 	*stremio.Stream
@@ -81,11 +151,18 @@ type indexerSearchQuery struct {
 var torrentFetchPool = pond.NewPool(20)
 
 func GetStreamsFromIndexers(ctx *RequestContext, stremType, stremId string) ([]WrappedStream, []string, error) {
+	log = ctx.Log
+
+	log.Info("GetStreamsFromIndexers called",
+		"indexerCount", len(ctx.Indexers),
+		"stremType", stremType,
+		"stremId", stremId)
+
 	if len(ctx.Indexers) == 0 {
+		log.Warn("No indexers configured in request context - skipping indexer searches")
 		return []WrappedStream{}, []string{}, nil
 	}
 
-	log = ctx.Log
 
 	nsid, err := torrent_stream.NormalizeStreamId(stremId)
 	if err != nil {
@@ -225,16 +302,51 @@ func GetStreamsFromIndexers(ctx *RequestContext, stremType, stremId string) ([]W
 	var wg sync.WaitGroup
 	results := make([][]tznc.Torz, len(sQueries))
 	errs := make([]error, len(sQueries))
+	log.Info("TRACE: Starting indexer searches", "sQueryCount", len(sQueries))
 	for i := range sQueries {
 		wg.Add(1)
 		go func(sq indexerSearchQuery, i int) {
 			defer wg.Done()
+			log.Info("TRACE: Executing indexer search", "indexer", sq.indexer.GetId(), "index", i)
 			start := time.Now()
 			results[i], errs[i] = sq.indexer.Search(sq.query)
+			duration := time.Since(start)
+
+			// Log per-indexer search performance
+			indexerName := sq.indexer.GetId()
+			resultCount := 0
 			if errs[i] == nil {
-				log.Debug("indexer search completed", "indexer", sq.indexer.GetId(), "query", sq.query.Encode(), "duration", time.Since(start).String(), "count", len(results[i]))
+				resultCount = len(results[i])
+			}
+
+			log.Info("TRACE: Completed indexer search", "indexer", indexerName, "results", resultCount, "duration_ms", duration.Milliseconds())
+
+			// Import the userdata package to get access to the logger
+			log.Info("per-indexer search result",
+				"indexer", indexerName,
+				"stremId", stremId,
+				"results", resultCount,
+				"duration_ms", duration.Milliseconds(),
+				"error", errs[i])
+
+			if errs[i] == nil {
+				log.Debug("indexer search completed", "indexer", sq.indexer.GetId(), "query", sq.query.Encode(), "duration", duration.String(), "count", len(results[i]))
+
+				// Log successful Prowlarr search to database
+				if stremio_userdata.IndexerDB != nil {
+					go logIndexerSearch(sq.indexer.GetId(), sq.query.Encode(), duration, 200, len(results[i]), true, "", "")
+				}
 			} else {
-				log.Error("indexer search failed", "error", errs[i], "indexer", sq.indexer.GetId(), "query", sq.query.Encode(), "duration", time.Since(start).String())
+				log.Error("indexer search failed", "error", errs[i], "indexer", sq.indexer.GetId(), "query", sq.query.Encode(), "duration", duration.String())
+
+				// Log failed Prowlarr search to database
+				if stremio_userdata.IndexerDB != nil {
+					errorType := "http_error"
+					if duration > 30*time.Second {
+						errorType = "timeout"
+					}
+					go logIndexerSearch(sq.indexer.GetId(), sq.query.Encode(), duration, 500, 0, false, errorType, errs[i].Error())
+				}
 			}
 		}(sQueries[i], i)
 	}

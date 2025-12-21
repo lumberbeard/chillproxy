@@ -16,6 +16,7 @@ services:
       - CHILLSTREAMS_API_URL=http://host.docker.internal:3000
       - CHILLSTREAMS_API_KEY=test_internal_key_phase3_2025
       - ENABLE_CHILLSTREAMS_AUTH=true
+      - CHILLSTREAMS_DATABASE_URL=postgresql://postgres:Iamwho06!@host.docker.internal:5432/chillstreams
 
       # Database
       - STREMTHRU_DATABASE_URI=sqlite:///app/data/stremthru.db

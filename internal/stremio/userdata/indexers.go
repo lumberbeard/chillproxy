@@ -1,6 +1,7 @@
 package stremio_userdata
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"slices"
@@ -23,6 +24,14 @@ type Indexer struct {
 	Name   IndexerName `json:"n"`
 	URL    string      `json:"u"`
 	APIKey string      `json:"ak,omitempty"`
+}
+
+// Global DB instance for indexer logging (set by main.go)
+var IndexerDB *sql.DB
+
+// InitializeIndexerDB sets the database connection for Prowlarr logging
+func InitializeIndexerDB(db *sql.DB) {
+	IndexerDB = db
 }
 
 // type rawIndexer Indexer
