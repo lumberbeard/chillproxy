@@ -183,9 +183,13 @@ func (c APIClient) CheckMagnet(params *CheckMagnetParams) (request.APIResponse[s
 		params.Query.Set("sid", params.SId)
 	}
 	params.Query.Set("local_only", "1")
+	// Pass StoreToken via query parameter instead of header to avoid invalid header field value errors
+	// The pool key (UUID with hyphens) cannot be safely used as Bearer token value in HTTP headers
+	if params.StoreToken != "" {
+		params.Query.Set("store_token", params.StoreToken)
+	}
 	params.Headers = &http.Header{
-		"X-StremThru-Store-Name":          []string{string(params.StoreName)},
-		"X-StremThru-Store-Authorization": []string{"Bearer " + params.StoreToken},
+		"X-StremThru-Store-Name": []string{string(params.StoreName)},
 	}
 
 	response := &Response[store.CheckMagnetData]{}
@@ -205,9 +209,13 @@ type TrackMagnetParams struct {
 type TrackMagnetData struct{}
 
 func (c APIClient) TrackMagnet(params *TrackMagnetParams) (request.APIResponse[TrackMagnetData], error) {
+	// Pass StoreToken via query parameter instead of header to avoid invalid header field value errors
+	params.Query = &url.Values{}
+	if params.StoreToken != "" {
+		params.Query.Set("store_token", params.StoreToken)
+	}
 	params.Headers = &http.Header{
-		"X-StremThru-Store-Name":          []string{string(params.StoreName)},
-		"X-StremThru-Store-Authorization": []string{"Bearer " + params.StoreToken},
+		"X-StremThru-Store-Name": []string{string(params.StoreName)},
 	}
 	if config.PeerFlag.NoSpillTorz {
 		if params.Cached == nil {

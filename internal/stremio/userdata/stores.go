@@ -243,6 +243,10 @@ func (ud *UserDataStores) CheckMagnet(params *store.CheckMagnetParams, log *logg
 		SId:      params.SId,
 	}
 	cmParams.APIKey = firstStore.AuthToken
+
+	// DEBUG: Log the API key being used for CheckMagnet
+	log.Info("🔑 CheckMagnet API key check", "authToken", firstStore.AuthToken, "authTokenLength", len(firstStore.AuthToken), "store", firstStore.Store.GetName())
+
 	storeCode := strings.ToUpper(string(firstStore.Store.GetName().Code()))
 	if cmRes, err := firstStore.Store.CheckMagnet(cmParams); err != nil {
 		log.Warn("failed to check magnet", "error", err, "store.name", firstStore.Store.GetName())

@@ -83,14 +83,41 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 
 		// Inject pool key into store client
 		if resp.PoolKey != "" {
+			log.Debug("pool key received from chillstreams", "poolKey", resp.PoolKey, "poolKeyLength", len(resp.PoolKey), "poolKeyId", resp.PoolKeyID)
+
 			switch client := s.Store.(type) {
 			case *torbox.StoreClient:
+				// Verify the pool key before injection
+				if len(resp.PoolKey) != 36 {
+					log.Error("invalid pool key format", "poolKey", resp.PoolKey, "expectedLength", 36, "actualLength", len(resp.PoolKey))
+					return fmt.Errorf("invalid pool key format received from chillstreams")
+				}
+
+				// CRITICAL: Set BOTH client API key AND AuthToken
+				// client.SetAPIKey affects the TorBox client's internal state
+				// s.AuthToken is used in CheckMagnet params
 				client.SetAPIKey(resp.PoolKey)
-				s.AuthToken = resp.PoolKey // Update auth token for other methods
-				log.Info("💛 torpool pool key injected", "userId", s.ChillstreamsAuth, "poolKeyId", resp.PoolKeyID, "deviceCount", resp.DeviceCount, "store", s.Store.GetName())
+				s.AuthToken = resp.PoolKey // ✅ This is used by CheckMagnet
+
+				// Verify the key was set correctly
+				actualKey := client.GetAPIKey()
+				log.Info("💛 torpool pool key injected", "userId", s.ChillstreamsAuth, "poolKeyId", resp.PoolKeyID, "deviceCount", resp.DeviceCount, "store", s.Store.GetName(), "keySet", actualKey == resp.PoolKey, "keyLength", len(actualKey), "authTokenSet", s.AuthToken == resp.PoolKey)
+
+				if actualKey != resp.PoolKey {
+					log.Error("API key mismatch after setting", "expected", resp.PoolKey, "actual", actualKey)
+					return fmt.Errorf("failed to set TorBox API key correctly")
+				}
+
+				if s.AuthToken != resp.PoolKey {
+					log.Error("AuthToken mismatch after setting", "expected", resp.PoolKey, "actual", s.AuthToken)
+					return fmt.Errorf("failed to set AuthToken correctly")
+				}
 			default:
 				log.Debug("chillstreams auth not supported for this store type", "store", s.Store.GetName())
 			}
+		} else {
+			log.Error("empty pool key received from chillstreams", "userId", s.ChillstreamsAuth, "poolKeyId", resp.PoolKeyID)
+			return fmt.Errorf("empty pool key received")
 		}
 	}
 
