@@ -1,0 +1,46 @@
+CREATE EXTENSION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+DROP TRIGGER
+NOTICE:  trigger "trigger_user_subscriptions_updated_at" for relation "user_subscriptions" does not exist, skipping
+CREATE TRIGGER
+CREATE TABLE
+CREATE INDEX
+DROP TRIGGER
+CREATE TRIGGER
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+NOTICE:  trigger "update_torbox_pool_updated_at_trigger" for relation "torbox_pool" does not exist, skipping
+ERROR:  foreign key constraint "torbox_pool_health_pool_key_id_fkey" cannot be implemented
+DETAIL:  Key columns "pool_key_id" and "id" are of incompatible types: text and integer.
+ERROR:  relation "torbox_pool_health" does not exist
+ERROR:  relation "torbox_pool_health" does not exist
+ERROR:  relation "torbox_pool_health" does not exist
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX

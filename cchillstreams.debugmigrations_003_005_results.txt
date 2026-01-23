@@ -1,0 +1,45 @@
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+INSERT 0 1
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+✅ Migration 003 applied
+NOTICE:  trigger "trigger_refresh_global_stats_on_insert" for relation "prowlarr_search_logs" does not exist, skipping
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+INSERT 0 1
+CREATE TABLE
+INSERT 0 1
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+DROP FUNCTION
+DROP FUNCTION
+DROP FUNCTION
+DROP FUNCTION
+DROP TABLE
+DROP TABLE
+DROP TABLE
+DROP TABLE
+✅ Migration 004 applied
+ALTER TABLE
+CREATE INDEX
+                         status                          
+---------------------------------------------------------
+ Migration 005: Added stripe_price_id to user_subs table
+(1 row)
+
+✅ Migration 005 applied

@@ -145,7 +145,7 @@ node seed-chillproxy-indexers.cjs  # ✅ Indexer seeded
 ### 3. Run Reports
 ```pwsh
 cd C:\chillstreams
-node report-prowlarr-fixed.cjs  # Should show search data
+node report-prowlarr.cjs  # Should show search data
 ```
 
 ## Expected Report Output (After Activity)
@@ -237,7 +237,7 @@ ORDER BY timeout_count_24h DESC;
 4. **Run reports** to see performance data:
    ```pwsh
    cd C:\chillstreams
-   node report-prowlarr-fixed.cjs
+   node report-prowlarr.cjs
    ```
 5. **Optimize** by disabling slow/failing indexers based on data
 

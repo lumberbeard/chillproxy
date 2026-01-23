@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh chl:*)",
+      "Bash(tee:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: SendPulse email service not sending signup emails\n\nRoot cause: email.service.ts was calling this.transporter.sendMail\\(\\) even \nwhen EMAIL_PROVIDER=sendpulse. But for SendPulse, this.transporter is just \nan empty object {}, not a nodemailer transporter.\n\nFix: Detect EMAIL_PROVIDER and call sendpulseService.sendEmail\\(\\) directly \nwhen using SendPulse, bypassing the nodemailer transporter.\n\nThis enables welcome emails to be sent to new users after signup.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(pnpm build:*)",
+      "Bash(npm run build:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix pool assignment ID type mismatch\n\n- Remove manual UUID assignment for torbox_pool_assignments.id  \n- Use PostgreSQL RETURNING clause to get auto-generated integer ID\n- Fixes ''invalid input syntax for type integer'' error when creating pool assignments\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(git push:*)",
+      "Bash(.deploy-prod.ps1 app)",
+      "Bash(powershell -File:*)",
+      "Bash(git commit:*)",
+      "Bash(curl:*)",
+      "Bash(powershell -Command \"Select-String -Path ''c:\\\\chillstreams\\\\packages\\\\frontend\\\\out\\\\wizard.html'' -Pattern ''Setup Wizard|My Account'' | Select-Object -First 5\")",
+      "Read(//c/chillstreams/packages/frontend/src/components/ui/button/**)",
+      "Read(//c/chillstreams/packages/frontend/src/components/ui/modal/**)",
+      "Read(//c/chillstreams/packages/frontend/src/components/ui/switch/**)",
+      "Read(//c/chillstreams/packages/frontend/src/components/wizard/**)",
+      "Read(//c/chillstreams/packages/frontend/**)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd AddonMgr page for Stremio addon management\n\n- New /addon-mgr route with drag-drop addon reordering using dnd-kit\n- Cinemeta patching controls \\(remove search, hide catalogs, disable metadata\\)\n- Backup/restore functionality with JSON export/import\n- Stremio auth integration \\(login or direct authKey\\)\n- Manifest editing with form and JSON modes\n- Updated WizardNavbar to support addon-mgr page with dropdown navigation\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(powershell -Command \"Select-String -Path ''c:\\\\chillstreams\\\\packages\\\\frontend\\\\out\\\\wizard.html'' -Pattern ''My Account|Setup Wizard|Addon Manager'' | Select-Object -First 10\")",
+      "Bash(powershell -Command:*)",
+      "Bash(pnpm run build:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\chillstreams\\packages\\frontend\\src\\services",
+      "c:\\chillstreams\\packages\\frontend\\src\\app",
+      "c:\\chillstreams\\packages\\frontend\\src\\components\\addon-mgr",
+      "c:\\chillstreams\\packages\\frontend\\src\\components\\wizard"
+    ]
+  }
+}
