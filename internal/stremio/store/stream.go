@@ -117,6 +117,13 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		ctx, err := ud.GetRequestContext(r, idr)
 		if err != nil || ctx.Store == nil {
 			if err != nil {
+				// Check if error indicates subscription issue
+				if isSubscriptionError(err) {
+					// Return fake "subscription required" stream instead of error
+					res.Streams = []stremio.Stream{createSubscriptionRequiredStream()}
+					SendResponse(w, r, 200, res)
+					return
+				}
 				LogError(r, "failed to get request context", err)
 			}
 			shared.ErrorBadRequest(r, "").Send(w, r)
@@ -172,6 +179,12 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 				ctx, err := ud.GetRequestContext(r, idr)
 				if err != nil || ctx.Store == nil {
 					if err != nil {
+						// Check if error indicates subscription issue
+						if isSubscriptionError(err) {
+							// Set subscription error - will be handled after wg.Wait()
+							errs[idx] = err
+							return
+						}
 						LogError(r, "failed to get request context", err)
 					}
 					errs[idx] = shared.ErrorBadRequest(r, "")
@@ -224,6 +237,13 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		wg.Wait()
 		for _, err := range errs {
 			if err != nil {
+				// Check if any error is subscription-related
+				if isSubscriptionError(err) {
+					// Return fake "subscription required" stream
+					res.Streams = []stremio.Stream{createSubscriptionRequiredStream()}
+					SendResponse(w, r, 200, res)
+					return
+				}
 				SendError(w, r, err)
 				return
 			}
@@ -284,6 +304,12 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 				ctx, err := ud.GetRequestContext(r, idr)
 				if err != nil || ctx.Store == nil {
 					if err != nil {
+						// Check if error indicates subscription issue
+						if isSubscriptionError(err) {
+							// Set subscription error - will be handled after wg.Wait()
+							errs[idx] = err
+							return
+						}
 						LogError(r, "failed to get request context", err)
 					}
 					errs[idx] = shared.ErrorBadRequest(r, "")
@@ -332,6 +358,13 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		wg.Wait()
 		for _, err := range errs {
 			if err != nil {
+				// Check if any error is subscription-related
+				if isSubscriptionError(err) {
+					// Return fake "subscription required" stream
+					res.Streams = []stremio.Stream{createSubscriptionRequiredStream()}
+					SendResponse(w, r, 200, res)
+					return
+				}
 				SendError(w, r, err)
 				return
 			}
@@ -588,4 +621,30 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	SendResponse(w, r, 200, res)
+}
+
+// isSubscriptionError checks if an error indicates a subscription issue
+func isSubscriptionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "subscription") ||
+		strings.Contains(errMsg, "expired") ||
+		strings.Contains(errMsg, "not allowed") ||
+		strings.Contains(errMsg, "requires upgrade") ||
+		strings.Contains(errMsg, "requires renewal")
+}
+
+// createSubscriptionRequiredStream creates a fake stream prompting user to renew subscription
+func createSubscriptionRequiredStream() stremio.Stream {
+	return stremio.Stream{
+		Name:        "🔒 Subscription Required",
+		Title:       "Your subscription has expired",
+		Description: "Click here to renew your Chillstreams subscription and continue enjoying unlimited streaming.",
+		ExternalURL: "https://app.chillstreams.com/account?action=renew",
+		BehaviorHints: &stremio.StreamBehaviorHints{
+			NotWebReady: true,
+		},
+	}
 }
