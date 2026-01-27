@@ -88,9 +88,15 @@ echo ""
 echo "[4/5] Building Docker image..."
 docker build -t chillproxy:latest .
 
+# Tag with GHCR name so docker-compose uses local build
+docker tag chillproxy:latest ghcr.io/lumberbeard/chillproxy:latest
+
 echo ""
-echo "[5/5] Restarting container..."
-docker restart chillstreams-chillproxy
+echo "[5/5] Recreating container with new image..."
+cd ~/chillstreams-app
+
+# Recreate container using docker-compose (will use locally tagged image)
+docker-compose -f docker-compose.prod.yml up -d --force-recreate --no-deps chillproxy
 
 echo ""
 echo "✓ Deployment complete!"
@@ -100,7 +106,7 @@ docker ps | grep chillstreams-chillproxy
 
 echo ""
 echo "Recent logs:"
-docker logs --tail 20 chillstreams-chillproxy
+docker logs --tail 30 chillstreams-chillproxy
 '@
 
 ssh chl "bash -c '$deployScript'"
