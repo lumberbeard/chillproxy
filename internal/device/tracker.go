@@ -8,11 +8,14 @@ import (
 )
 
 // GenerateDeviceID creates consistent device ID from IP + User-Agent
+// Currently using IP-only to avoid treating parallel requests from same browser as different devices
 func GenerateDeviceID(r *http.Request) string {
 	ip := getClientIP(r)
-	ua := r.Header.Get("User-Agent")
+	// ua := r.Header.Get("User-Agent")
 
-	hash := sha256.Sum256([]byte(ip + "|" + ua))
+	// Use IP-only for now to avoid parallel request issues
+	// TODO: Consider adding stable device fingerprint from frontend (localStorage-based)
+	hash := sha256.Sum256([]byte(ip))
 	return hex.EncodeToString(hash[:])
 }
 
