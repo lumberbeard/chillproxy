@@ -23,7 +23,9 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd AddonMgr page for Stremio addon management\n\n- New /addon-mgr route with drag-drop addon reordering using dnd-kit\n- Cinemeta patching controls \\(remove search, hide catalogs, disable metadata\\)\n- Backup/restore functionality with JSON export/import\n- Stremio auth integration \\(login or direct authKey\\)\n- Manifest editing with form and JSON modes\n- Updated WizardNavbar to support addon-mgr page with dropdown navigation\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(powershell -Command \"Select-String -Path ''c:\\\\chillstreams\\\\packages\\\\frontend\\\\out\\\\wizard.html'' -Pattern ''My Account|Setup Wizard|Addon Manager'' | Select-Object -First 10\")",
       "Bash(powershell -Command:*)",
-      "Bash(pnpm run build:*)"
+      "Bash(pnpm run build:*)",
+      "Bash(./deploy-chillproxy.ps1)",
+      "Bash(python3:*)"
     ],
     "additionalDirectories": [
       "c:\\chillstreams\\packages\\frontend\\src\\services",

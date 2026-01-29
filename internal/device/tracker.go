@@ -7,16 +7,15 @@ import (
 	"strings"
 )
 
-// GenerateDeviceID creates consistent device ID from IP + User-Agent
-// Currently using IP-only to avoid treating parallel requests from same browser as different devices
+// GenerateDeviceID creates consistent device ID
+// SIMPLIFIED: Using constant "default-device" since IP-based detection is unreliable
+// IP addresses change between requests (IPv4/IPv6 switching, proxy headers, load balancing)
+// This ensures one device assignment per user, preventing race conditions
+// TODO: Frontend-based device fingerprinting (localStorage-based UUID from Stremio)
 func GenerateDeviceID(r *http.Request) string {
-	ip := getClientIP(r)
-	// ua := r.Header.Get("User-Agent")
-
-	// Use IP-only for now to avoid parallel request issues
-	// TODO: Consider adding stable device fingerprint from frontend (localStorage-based)
-	hash := sha256.Sum256([]byte(ip))
-	return hex.EncodeToString(hash[:])
+	// Return constant device ID to ensure stability
+	// This effectively gives each user ONE device assignment for the pool
+	return "default-device"
 }
 
 func getClientIP(r *http.Request) string {
