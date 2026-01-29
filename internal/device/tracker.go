@@ -1,8 +1,6 @@
 package device
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"net/http"
 	"strings"
 )
