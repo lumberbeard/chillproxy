@@ -152,12 +152,3 @@ func (c *Client) NewSearchQuery(fn func(caps Caps) Function) (*Query, error) {
 	q.SetT(fn(caps))
 	return &q, nil
 }
-
-// NewQueryWithCaps creates a new Query with provided Caps (for custom indexers)
-func NewQueryWithCaps(caps *Caps, fn func(caps Caps) Function) *Query {
-	q := Query{caps: caps, values: url.Values{}}
-	if fn != nil {
-		q.SetT(fn(*caps))
-	}
-	return &q
-}
