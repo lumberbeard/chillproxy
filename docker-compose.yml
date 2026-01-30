@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   chillproxy:
-    image: chillproxy:latest
+    image: ghcr.io/lumberbeard/chillproxy:latest
     container_name: chillproxy
     ports:
       - "8080:8080"
