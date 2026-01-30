@@ -1,13 +1,16 @@
 package stremio_userdata
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/cache"
+	"github.com/MunifTanjim/stremthru/internal/prowlarr"
 	torznab_client "github.com/MunifTanjim/stremthru/internal/torznab/client"
 	"github.com/MunifTanjim/stremthru/internal/torznab/jackett"
 )
@@ -15,9 +18,9 @@ import (
 type IndexerName string
 
 const (
-	IndexerNameGeneric   IndexerName = "generic"
-	IndexerNameJackett   IndexerName = "jackett"
-	IndexerNameProwlarr  IndexerName = "prowlarr"
+	IndexerNameGeneric  IndexerName = "generic"
+	IndexerNameJackett  IndexerName = "jackett"
+	IndexerNameProwlarr IndexerName = "prowlarr"
 )
 
 type Indexer struct {
@@ -110,36 +113,105 @@ var jackettCache = cache.NewCache[*jackett.Client](&cache.CacheConfig{
 	Name:     "stremio:userdata:indexers:jackett",
 })
 
-// prowlarrTorznabClient wraps torznab_client.Client to implement the Indexer interface
-type prowlarrTorznabClient struct {
-	*torznab_client.Client
-	id string
+// prowlarrNativeClient uses Prowlarr's native /api/v1/search API
+type prowlarrNativeClient struct {
+	id             string
+	prowlarrClient *prowlarr.Client
 }
 
-func (ptc *prowlarrTorznabClient) GetId() string {
-	return "prowlarr/" + ptc.id
+func (pnc *prowlarrNativeClient) GetId() string {
+	return "prowlarr/" + pnc.id
 }
 
-func (ptc *prowlarrTorznabClient) Search(query *torznab_client.Query) ([]torznab_client.Torz, error) {
-	// Prowlarr uses the same Torznab protocol as Jackett
-	// We'll use jackett's search response type since Prowlarr implements the same protocol
-	params := &jackett.Ctx{}
-	q := query.Values()
-	params.Query = &q
+// createProwlarrFakeCaps creates a Caps struct with all search functions enabled
+func createProwlarrFakeCaps() *torznab_client.Caps {
+	caps := &torznab_client.Caps{}
+	caps.Server.Title = "Prowlarr"
 
-	var resp torznab_client.Response[jackett.SearchResponse]
-	_, err := ptc.Client.Request("GET", "/api", params, &resp)
+	// Enable all search types
+	caps.Searching.Search.Available = true
+	caps.Searching.Search.SupportedParams = "q"
+
+	caps.Searching.TVSearch.Available = true
+	caps.Searching.TVSearch.SupportedParams = "q,season,ep,imdbid,tvdbid"
+
+	caps.Searching.MovieSearch.Available = true
+	caps.Searching.MovieSearch.SupportedParams = "q,imdbid,tmdbid"
+
+	return caps
+}
+
+func (pnc *prowlarrNativeClient) NewSearchQuery(fn func(caps torznab_client.Caps) torznab_client.Function) (*torznab_client.Query, error) {
+	// Create fake caps without calling GetCaps (which would fail with 401)
+	fakeCaps := createProwlarrFakeCaps()
+
+	// Use the new constructor to create a Query with our fake caps
+	query := torznab_client.NewQueryWithCaps(fakeCaps, fn)
+	return query, nil
+}
+
+func (pnc *prowlarrNativeClient) Search(query *torznab_client.Query) ([]torznab_client.Torz, error) {
+	values := query.Values()
+
+	// Extract search parameters
+	var searchQuery string
+	var searchType string
+
+	t := values.Get("t")
+	switch t {
+	case "movie":
+		searchType = "movie"
+	case "tvsearch":
+		searchType = "tvsearch"
+	default:
+		searchType = "search"
+	}
+
+	// Get search query from various parameters
+	if imdbId := values.Get("imdbid"); imdbId != "" {
+		searchQuery = imdbId
+	} else if q := values.Get("q"); q != "" {
+		searchQuery = q
+	}
+
+	if searchQuery == "" {
+		return []torznab_client.Torz{}, nil
+	}
+
+	// Call Prowlarr native API
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	results, err := pnc.prowlarrClient.Search(ctx, searchQuery, searchType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("prowlarr native search failed: %w", err)
 	}
 
-	items := resp.Data.Channel.Items
-	result := make([]torznab_client.Torz, 0, len(items))
-	for i := range items {
-		item := &items[i]
-		result = append(result, *item.ToTorz())
+	// Convert Prowlarr results to Torz format
+	torrents := make([]torznab_client.Torz, 0, len(results))
+	for i := range results {
+		result := &results[i]
+
+		// Create magnet link from infohash
+		magnetLink := ""
+		if result.InfoHash != "" {
+			magnetLink = "magnet:?xt=urn:btih:" + strings.ToLower(result.InfoHash)
+		}
+
+		torz := torznab_client.Torz{
+			Indexer:    result.Indexer,
+			Hash:       strings.ToLower(result.InfoHash),
+			Title:      result.Title,
+			Size:       result.Size,
+			Seeders:    result.Seeders,
+			Leechers:   result.Leechers,
+			MagnetLink: magnetLink,
+			SourceLink: result.DownloadURL,
+		}
+		torrents = append(torrents, torz)
 	}
-	return result, nil
+
+	return torrents, nil
 }
 
 func (ud *UserDataIndexers) Compress() {
@@ -187,19 +259,15 @@ func (ud *UserDataIndexers) Prepare() ([]torznab_client.Indexer, error) {
 			indexers = append(indexers, c)
 
 		case IndexerNameProwlarr:
-			// Prowlarr acts as a Torznab indexer aggregator
-			// Use the base URL + /api/v2.0/indexers/all/results/torznab as the endpoint
-			torznabURL := baseURL + "/api/v2.0/indexers/all/results/torznab"
-
-			tc := torznab_client.NewClient(&torznab_client.ClientConfig{
-				BaseURL: torznabURL,
+			// Use Prowlarr's native API instead of the broken Torznab v2 endpoint
+			prowlarrClient := prowlarr.NewClient(&prowlarr.ClientConfig{
+				BaseURL: baseURL,
 				APIKey:  apiKey,
 			})
 
-			// Wrap the torznab client to implement the Indexer interface
-			client := &prowlarrTorznabClient{
-				Client: tc,
-				id:     "all",
+			client := &prowlarrNativeClient{
+				id:             "all",
+				prowlarrClient: prowlarrClient,
 			}
 			indexers = append(indexers, client)
 
@@ -209,5 +277,3 @@ func (ud *UserDataIndexers) Prepare() ([]torznab_client.Indexer, error) {
 	}
 	return indexers, nil
 }
-
-
