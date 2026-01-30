@@ -130,13 +130,24 @@ func createProwlarrFakeCaps() *torznab_client.Caps {
 
 	// Enable all search types
 	caps.Searching.Search.Available = true
-	caps.Searching.Search.SupportedParams = "q"
+	caps.Searching.Search.SupportedParams = []torznab_client.SearchParam{
+		torznab_client.SearchParamQ,
+	}
 
 	caps.Searching.TVSearch.Available = true
-	caps.Searching.TVSearch.SupportedParams = "q,season,ep,imdbid,tvdbid"
+	caps.Searching.TVSearch.SupportedParams = []torznab_client.SearchParam{
+		torznab_client.SearchParamQ,
+		torznab_client.SearchParamSeason,
+		torznab_client.SearchParamEp,
+		torznab_client.SearchParamIMDBId,
+		torznab_client.SearchParamTVDBId,
+	}
 
 	caps.Searching.MovieSearch.Available = true
-	caps.Searching.MovieSearch.SupportedParams = "q,imdbid,tmdbid"
+	caps.Searching.MovieSearch.SupportedParams = []torznab_client.SearchParam{
+		torznab_client.SearchParamQ,
+		torznab_client.SearchParamIMDBId,
+	}
 
 	return caps
 }
@@ -260,10 +271,7 @@ func (ud *UserDataIndexers) Prepare() ([]torznab_client.Indexer, error) {
 
 		case IndexerNameProwlarr:
 			// Use Prowlarr's native API instead of the broken Torznab v2 endpoint
-			prowlarrClient := prowlarr.NewClient(&prowlarr.ClientConfig{
-				BaseURL: baseURL,
-				APIKey:  apiKey,
-			})
+			prowlarrClient := prowlarr.NewClient(baseURL, apiKey)
 
 			client := &prowlarrNativeClient{
 				id:             "all",
