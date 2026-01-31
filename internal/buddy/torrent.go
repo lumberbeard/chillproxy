@@ -73,32 +73,32 @@ func PullTorrentsByStremId(sid string, originInstanceId string) []string {
 			cleanSId := ts.CleanStremId(sid)
 			data, err := ti.ListByStremId(cleanSId, false)
 			count := 0
-		if err == nil && data != nil {
-			count = len(data.Items)
-		}
+			if err == nil && data != nil {
+				count = len(data.Items)
+			}
 
-		if count > 0 {
-			pullPeerLog.Info("logging cached search", "sid", cleanSId, "count", count)
-			// Log cached search with per-indexer breakdown
-			if ProwlarrLogger != nil {
-				// Group cached results by indexer
-				indexerMap := make(map[string]int)
-				for i := range data.Items {
-					indexerName := data.Items[i].Indexer
-					if indexerName == "" {
-						indexerName = "Prowlarr (All)" // Fallback
+			if count > 0 {
+				pullPeerLog.Info("logging cached search", "sid", cleanSId, "count", count)
+				// Log cached search with per-indexer breakdown
+				if ProwlarrLogger != nil {
+					// Group cached results by indexer
+					indexerMap := make(map[string]int)
+					for i := range data.Items {
+						indexerName := data.Items[i].Indexer
+						if indexerName == "" {
+							indexerName = "Prowlarr (All)" // Fallback
+						}
+						indexerMap[indexerName]++
 					}
-					indexerMap[indexerName]++
-				}
 
-				// Log each indexer's cached results
-				for indexerName, indexerCount := range indexerMap {
-					pullPeerLog.Info("logging cached results per-indexer", "sid", cleanSId, "indexer", indexerName, "count", indexerCount)
-					// Log as cached search (0ms response time since it's from cache)
-					go ProwlarrLogger(indexerName, cleanSId, 0, indexerCount, true, "", "")
+					// Log each indexer's cached results
+					for indexerName, indexerCount := range indexerMap {
+						pullPeerLog.Info("logging cached results per-indexer", "sid", cleanSId, "indexer", indexerName, "count", indexerCount)
+						// Log as cached search (0ms response time since it's from cache)
+						go ProwlarrLogger(indexerName, cleanSId, 0, indexerCount, true, "", "")
+					}
 				}
 			}
-		}
 		}
 
 		return nil
@@ -131,37 +131,25 @@ func PullTorrentsByStremId(sid string, originInstanceId string) []string {
 	count := len(res.Data.Items)
 	pullPeerLog.Info("pulled torrents", "duration", duration, "sid", cleanSId, "count", count)
 
-	// DEBUG: Log that we're about to process results
-	pullPeerLog.Info("DEBUG: About to log results", "count", count, "ProwlarrLogger_is_nil", ProwlarrLogger == nil)
-
 	// Log search results to database via callback
 	// Log each result's indexer separately for per-indexer tracking
 	if count > 0 && ProwlarrLogger != nil {
-		pullPeerLog.Info("DEBUG: Processing results for logging", "sid", cleanSId, "total_results", count, "duration_ms", duration.Milliseconds())
-
 		// Group by indexer for logging
 		indexerMap := make(map[string]int)
 		for i := range res.Data.Items {
 			indexerName := res.Data.Items[i].Indexer
-			pullPeerLog.Debug("DEBUG: Processing result item", "index", i, "indexer", indexerName, "title", res.Data.Items[i].TorrentTitle)
 			if indexerName == "" {
-				pullPeerLog.Warn("DEBUG: Result has empty indexer field", "index", i, "title", res.Data.Items[i].TorrentTitle)
 				indexerName = "Prowlarr (All)" // Fallback for results without indexer info
 			}
 			indexerMap[indexerName]++
 		}
 
-		pullPeerLog.Info("DEBUG: Indexer map created", "indexer_count", len(indexerMap))
-
 		// Log each indexer separately
 		for indexerName, indexerCount := range indexerMap {
-			pullPeerLog.Info("DEBUG: About to call ProwlarrLogger", "indexer", indexerName, "count", indexerCount)
 			go ProwlarrLogger(indexerName, cleanSId, duration, indexerCount, true, "", "")
-			pullPeerLog.Info("DEBUG: ProwlarrLogger called for", "indexer", indexerName)
 		}
 	} else if count == 0 && ProwlarrLogger != nil {
 		// Log empty results
-		pullPeerLog.Info("DEBUG: No results returned", "sid", cleanSId)
 		go ProwlarrLogger("Prowlarr (All)", cleanSId, duration, 0, true, "", "")
 	}
 
@@ -204,4 +192,3 @@ func ListTorrentsByStremId(sid string, localOnly bool, originInstanceId string, 
 	}
 	return data, nil
 }
-

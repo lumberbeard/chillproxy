@@ -4,11 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"time"
-
-	"github.com/dpotapov/slogpfx"
-	"github.com/lmittmann/tint"
-	"github.com/mattn/go-isatty"
 
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/logger/log"
@@ -40,17 +35,8 @@ var _ = func() *struct{} {
 			ReplaceAttr: log.JSONReplaceAttr,
 		})
 	} else {
-		handler = slogpfx.NewHandler(
-			tint.NewHandler(w, &tint.Options{
-				Level:       config.LogLevel,
-				NoColor:     !isatty.IsTerminal(w.Fd()),
-				ReplaceAttr: log.PrettyReplaceAttr,
-				TimeFormat:  time.DateTime,
-			}),
-			&slogpfx.HandlerOptions{
-				PrefixKeys: []string{"scope"},
-			},
-		)
+		// Use custom ChillFormatter for beautiful, readable logs
+		handler = NewChillFormatter(w, config.LogLevel)
 	}
 
 	logProps := util.NewSet[string]()

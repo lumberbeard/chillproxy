@@ -163,7 +163,6 @@ func GetStreamsFromIndexers(ctx *RequestContext, stremType, stremId string) ([]W
 		return []WrappedStream{}, []string{}, nil
 	}
 
-
 	nsid, err := torrent_stream.NormalizeStreamId(stremId)
 	if err != nil {
 		return nil, nil, err
@@ -281,8 +280,8 @@ func GetStreamsFromIndexers(ctx *RequestContext, stremType, stremId string) ([]W
 							q.WriteString(util.ZeroPadInt(queryMeta.ep, 2))
 						}
 						sQueries = append(sQueries, indexerSearchQuery{
-						 indexer: indexer,
-						 query:   query.Clone().Set(tznc.SearchParamQ, q.String()),
+							indexer: indexer,
+							query:   query.Clone().Set(tznc.SearchParamQ, q.String()),
 						})
 					}
 				} else if queryMeta.year > 0 {
@@ -302,12 +301,11 @@ func GetStreamsFromIndexers(ctx *RequestContext, stremType, stremId string) ([]W
 	var wg sync.WaitGroup
 	results := make([][]tznc.Torz, len(sQueries))
 	errs := make([]error, len(sQueries))
-	log.Info("TRACE: Starting indexer searches", "sQueryCount", len(sQueries))
+	log.Debug("starting indexer searches", "queryCount", len(sQueries))
 	for i := range sQueries {
 		wg.Add(1)
 		go func(sq indexerSearchQuery, i int) {
 			defer wg.Done()
-			log.Info("TRACE: Executing indexer search", "indexer", sq.indexer.GetId(), "index", i)
 			start := time.Now()
 			results[i], errs[i] = sq.indexer.Search(sq.query)
 			duration := time.Since(start)
@@ -319,7 +317,7 @@ func GetStreamsFromIndexers(ctx *RequestContext, stremType, stremId string) ([]W
 				resultCount = len(results[i])
 			}
 
-			log.Info("TRACE: Completed indexer search", "indexer", indexerName, "results", resultCount, "duration_ms", duration.Milliseconds())
+			log.Debug("completed indexer search", "indexer", indexerName, "results", resultCount, "duration", duration)
 
 			// Import the userdata package to get access to the logger
 			log.Info("per-indexer search result",

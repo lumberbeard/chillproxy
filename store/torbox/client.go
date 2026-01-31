@@ -61,21 +61,6 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 		authValue := "Bearer " + apiKey
 		header.Add("Authorization", authValue)
 		header.Add("User-Agent", c.agent)
-
-		// DEBUG: Log what's being sent (first 50 chars only for security)
-		truncated := authValue
-		if len(authValue) > 50 {
-			truncated = authValue[:50] + "..."
-		}
-		// Note: Using fmt.Println since we don't have logger here
-		// This will show in Docker logs
-		if len(apiKey) == 0 {
-			println("🚨 TORBOX: Empty API key!")
-		} else if len(apiKey) != 36 {
-			println("🚨 TORBOX: Invalid API key length:", len(apiKey), "expected 36")
-		} else {
-			println("✅ TORBOX: Authorization header set:", truncated)
-		}
 	}
 
 	return c
