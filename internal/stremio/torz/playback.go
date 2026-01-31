@@ -123,19 +123,6 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		"method", r.Method,
 		"userAgent", userAgent)
 
-	// Check if trying to play HEVC on unsupported browser
-	if isHEVCFile(fileName) && isHEVCUnsupportedBrowser(userAgent) {
-		log.Warn("🚫 HEVC playback blocked - unsupported browser",
-			"fileName", fileName,
-			"userAgent", userAgent,
-			"browser", detectBrowser(userAgent))
-
-		// Redirect to error video - using 403 for now (forbidden/unsupported)
-		// TODO: Create dedicated hevc_unsupported.mp4 with explanation
-		redirectToStaticVideo(w, r, cacheKey, "403")
-		return
-	}
-
 	ud, err := getUserData(r)
 	if err != nil {
 		SendError(w, r, err)
@@ -156,6 +143,19 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	storeCode := s.Store.GetName().Code()
 
 	cacheKey := strings.Join([]string{ctx.ClientIP, string(storeCode), ctx.StoreAuthToken, sid, magnetHash, strconv.Itoa(fileIdx), fileName}, ":")
+
+	// Check if trying to play HEVC on unsupported browser
+	if isHEVCFile(fileName) && isHEVCUnsupportedBrowser(userAgent) {
+		log.Warn("🚫 HEVC playback blocked - unsupported browser",
+			"fileName", fileName,
+			"userAgent", userAgent,
+			"browser", detectBrowser(userAgent))
+
+		// Redirect to error video - using 403 for now (forbidden/unsupported)
+		// TODO: Create dedicated hevc_unsupported.mp4 with explanation
+		redirectToStaticVideo(w, r, cacheKey, "403")
+		return
+	}
 
 	stremLink := ""
 	if stremLinkCache.Get(cacheKey, &stremLink) {
