@@ -27,6 +27,62 @@ var stremLinkCache = cache.NewCache[string](&cache.CacheConfig{
 	Lifetime: 3 * time.Hour,
 })
 
+// isHEVCFile checks if a filename contains HEVC/H.265 codec indicators
+func isHEVCFile(filename string) bool {
+	name := strings.ToLower(filename)
+	hevcIndicators := []string{
+		"hevc", "h.265", "h265", "x265", "[265]", " 265 ",
+	}
+	for _, indicator := range hevcIndicators {
+		if strings.Contains(name, indicator) {
+			return true
+		}
+	}
+	return false
+}
+
+// isHEVCUnsupportedBrowser checks if the browser doesn't support HEVC playback
+func isHEVCUnsupportedBrowser(userAgent string) bool {
+	ua := strings.ToLower(userAgent)
+
+	// Firefox doesn't support HEVC
+	if strings.Contains(ua, "firefox") {
+		return true
+	}
+
+	// Chrome/Chromium (excluding Safari which supports HEVC)
+	if strings.Contains(ua, "chrome") && !strings.Contains(ua, "edg") {
+		if !strings.Contains(ua, "safari") || strings.Contains(ua, "chromium") {
+			return true
+		}
+	}
+
+	// Edge on Windows
+	if strings.Contains(ua, "edg/") && strings.Contains(ua, "windows") {
+		return true
+	}
+
+	return false
+}
+
+// detectBrowser returns a friendly browser name from User-Agent
+func detectBrowser(userAgent string) string {
+	ua := strings.ToLower(userAgent)
+	if strings.Contains(ua, "firefox") {
+		return "Firefox"
+	}
+	if strings.Contains(ua, "edg/") {
+		return "Edge"
+	}
+	if strings.Contains(ua, "chrome") {
+		return "Chrome"
+	}
+	if strings.Contains(ua, "safari") {
+		return "Safari"
+	}
+	return "Unknown"
+}
+
 func redirectToStaticVideo(w http.ResponseWriter, r *http.Request, cacheKey string, videoName string) {
 	url := store_video.Redirect(videoName, w, r)
 	stremLinkCache.AddWithLifetime(cacheKey, url, 1*time.Minute)
@@ -57,6 +113,7 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log playback request details
+	userAgent := r.Header.Get("User-Agent")
 	log.Info("🎬 STREAM PLAYBACK REQUEST",
 		"stremId", r.PathValue("stremId"),
 		"fileName", fileName,
@@ -64,7 +121,20 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 		"magnetHash", magnetHash[:8]+"...",
 		"storeCode", r.PathValue("storeCode"),
 		"method", r.Method,
-		"userAgent", r.Header.Get("User-Agent"))
+		"userAgent", userAgent)
+
+	// Check if trying to play HEVC on unsupported browser
+	if isHEVCFile(fileName) && isHEVCUnsupportedBrowser(userAgent) {
+		log.Warn("🚫 HEVC playback blocked - unsupported browser",
+			"fileName", fileName,
+			"userAgent", userAgent,
+			"browser", detectBrowser(userAgent))
+
+		// Redirect to error video - using 403 for now (forbidden/unsupported)
+		// TODO: Create dedicated hevc_unsupported.mp4 with explanation
+		redirectToStaticVideo(w, r, cacheKey, "403")
+		return
+	}
 
 	ud, err := getUserData(r)
 	if err != nil {
