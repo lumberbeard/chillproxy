@@ -34,88 +34,6 @@ import (
 var streamTemplate = stremio_transformer.StreamTemplateDefault
 var torzLazyPull = config.Stremio.Torz.LazyPull
 
-// isHEVCUnsupportedUserAgent checks if the User-Agent is a browser that doesn't support HEVC playback
-func isHEVCUnsupportedUserAgent(userAgent string) bool {
-	ua := strings.ToLower(userAgent)
-
-	// Firefox doesn't support HEVC on most platforms
-	if strings.Contains(ua, "firefox") {
-		return true
-	}
-
-	// Chrome/Chromium on Windows/Linux don't support HEVC (only on Mac with hardware)
-	// Safari supports HEVC, so we exclude it
-	if strings.Contains(ua, "chrome") && !strings.Contains(ua, "edg") {
-		// Check if it's NOT Safari (Safari also has "Chrome" in UA)
-		if !strings.Contains(ua, "safari") || strings.Contains(ua, "chromium") {
-			return true
-		}
-	}
-
-	// Edge on Windows doesn't support HEVC in most cases
-	if strings.Contains(ua, "edg/") && strings.Contains(ua, "windows") {
-		return true
-	}
-
-	return false
-}
-
-// isHEVCStream checks if a stream name/title contains HEVC/H.265/x265 indicators
-func isHEVCStream(streamName string) bool {
-	name := strings.ToLower(streamName)
-
-	// Common HEVC indicators
-	hevcIndicators := []string{
-		"hevc",
-		"h.265",
-		"h265",
-		"x265",
-		"[265]",
-		" 265 ",
-	}
-
-	for _, indicator := range hevcIndicators {
-		if strings.Contains(name, indicator) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// filterHEVCStreams removes HEVC streams for browsers that don't support them
-func filterHEVCStreams(streams []stremio.Stream, userAgent string) []stremio.Stream {
-	if !isHEVCUnsupportedUserAgent(userAgent) {
-		// Browser supports HEVC, return all streams
-		return streams
-	}
-
-	filtered := make([]stremio.Stream, 0, len(streams))
-	filteredCount := 0
-
-	for i := range streams {
-		stream := &streams[i]
-
-		// Check stream name and title for HEVC indicators
-		if isHEVCStream(stream.Name) || isHEVCStream(stream.Title) {
-			filteredCount++
-			continue
-		}
-
-		filtered = append(filtered, *stream)
-	}
-
-	if filteredCount > 0 {
-		log.Debug("filtered HEVC streams for unsupported browser",
-			"userAgent", userAgent,
-			"totalStreams", len(streams),
-			"filtered", filteredCount,
-			"remaining", len(filtered))
-	}
-
-	return filtered
-}
-
 // logIndexerSearch logs an indexer search to the database for performance tracking
 func logIndexerSearch(indexerID, query string, duration time.Duration, httpStatus, resultsCount int, wasSuccessful bool, errorType, errorMsg string) {
 	if stremio_userdata.IndexerDB == nil {
@@ -1056,10 +974,6 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		streams[idx] = uncachedStreams[i]
 		idx++
 	}
-
-	// Filter HEVC streams for browsers that don't support them
-	userAgent := r.Header.Get("User-Agent")
-	streams = filterHEVCStreams(streams, userAgent)
 
 	if isP2P && !torzLazyPull {
 		w.Header().Set("Cache-Control", "public, max-age=7200")
