@@ -55,6 +55,18 @@ func handleStrem(w http.ResponseWriter, r *http.Request) {
 	if idx, err := strconv.Atoi(r.PathValue("fileIdx")); err == nil {
 		fileIdx = idx
 	}
+	stremId := r.PathValue("stremId")
+	storeCode := r.PathValue("storeCode")
+
+	// Log playback request details
+	log.Info("🎬 STREAM PLAYBACK REQUEST",
+		"stremId", stremId,
+		"fileName", fileName,
+		"fileIdx", fileIdx,
+		"magnetHash", magnetHash[:8]+"...",
+		"storeCode", storeCode,
+		"method", r.Method,
+		"userAgent", r.Header.Get("User-Agent"))
 
 	ud, err := getUserData(r)
 	if err != nil {

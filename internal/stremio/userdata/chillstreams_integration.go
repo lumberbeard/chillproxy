@@ -28,6 +28,11 @@ func getChillstreamsClient() *chillstreams.Client {
 
 // InitializeStoresWithChillstreams fetches pool keys from Chillstreams and injects them into stores
 func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log *logger.Logger) error {
+	// Log the request path to understand what's being requested
+	requestPath := r.URL.Path
+	requestMethod := r.Method
+	log.Info("🎬 POOL KEY REQUEST", "method", requestMethod, "path", requestPath)
+
 	// Log using the standard chillproxy logging pattern
 	log.Info("chillstreams config check", "enableAuth", config.EnableChillstreamsAuth, "apiURL", config.ChillstreamsAPIURL, "hasAPIKey", config.ChillstreamsAPIKey != "")
 
@@ -56,7 +61,7 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 			continue // No Chillstreams auth for this store
 		}
 
-		log.Info("requesting chillstreams pool key", "userId", s.ChillstreamsAuth, "store", s.Store.GetName())
+		log.Info("requesting chillstreams pool key", "userId", s.ChillstreamsAuth, "store", s.Store.GetName(), "requestPath", requestPath, "requestMethod", requestMethod)
 
 		// Fetch pool key from Chillstreams
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -101,7 +106,15 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 
 				// Verify the key was set correctly
 				actualKey := client.GetAPIKey()
-				log.Info("💛 torpool pool key injected", "userId", s.ChillstreamsAuth, "poolKeyId", resp.PoolKeyID, "deviceCount", resp.DeviceCount, "store", s.Store.GetName(), "keySet", actualKey == resp.PoolKey, "keyLength", len(actualKey), "authTokenSet", s.AuthToken == resp.PoolKey)
+				log.Info("💛 torpool pool key injected",
+					"userId", s.ChillstreamsAuth,
+					"poolKeyId", resp.PoolKeyID,
+					"deviceCount", resp.DeviceCount,
+					"store", s.Store.GetName(),
+					"keySet", actualKey == resp.PoolKey,
+					"keyLength", len(actualKey),
+					"authTokenSet", s.AuthToken == resp.PoolKey,
+					"requestPath", requestPath)
 
 				if actualKey != resp.PoolKey {
 					log.Error("API key mismatch after setting", "expected", resp.PoolKey, "actual", actualKey)
