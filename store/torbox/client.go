@@ -3,6 +3,7 @@ package torbox
 import (
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/config"
@@ -68,20 +69,49 @@ func NewAPIClient(conf *APIClientConfig) *APIClient {
 
 type Ctx = request.Ctx
 
+func keyPreview(key string) string {
+	if len(key) > 8 {
+		return key[:8]
+	}
+	return key
+}
+
 func (c APIClient) Request(method, path string, params request.Context, v ResponseEnvelop) (*http.Response, error) {
 	if params == nil {
 		params = &Ctx{}
 	}
+
+	// Capture the API key being used for this request
+	reqAPIKey := params.GetAPIKey(c.apiKey)
+
+	start := time.Now()
 	req, err := params.NewRequest(c.BaseURL, method, path, c.reqHeader, c.reqQuery)
 	if err != nil {
+		log.Error("🔴 TORBOX REQUEST FAILED (create)",
+			"method", method,
+			"path", path,
+			"keyPreview", keyPreview(reqAPIKey),
+			"error", err)
 		error := core.NewStoreError("failed to create request")
 		error.StoreName = string(store.StoreNameTorBox)
 		error.Cause = err
 		return nil, error
 	}
 	res, err := params.DoRequest(c.HTTPClient, req)
+	duration := time.Since(start)
 	err = request.ProcessResponseBody(res, err, v)
 	if err != nil {
+		statusCode := 0
+		if res != nil {
+			statusCode = res.StatusCode
+		}
+		log.Warn("🔴 TORBOX API ERROR",
+			"method", method,
+			"path", path,
+			"status", statusCode,
+			"keyPreview", keyPreview(reqAPIKey),
+			"duration", duration,
+			"error", err)
 		err := UpstreamErrorWithCause(err)
 		err.InjectReq(req)
 		if res != nil {
@@ -93,5 +123,13 @@ func (c APIClient) Request(method, path string, params request.Context, v Respon
 		err.Pack(req)
 		return res, err
 	}
+
+	log.Info("🟢 TORBOX API OK",
+		"method", method,
+		"path", path,
+		"status", res.StatusCode,
+		"keyPreview", keyPreview(reqAPIKey),
+		"duration", duration)
+
 	return res, nil
 }

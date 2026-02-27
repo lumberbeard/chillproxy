@@ -306,6 +306,15 @@ func (c *StoreClient) AddMagnet(params *store.AddMagnetParams) (*store.AddMagnet
 	if err != nil {
 		return nil, err
 	}
+
+	// Log CreateTorrent response details for key rotation debugging
+	log.Info("📋 CREATETORRENT RESPONSE",
+		"torrentId", res.Data.TorrentId,
+		"hash", res.Data.Hash,
+		"authId", res.Data.AuthId,
+		"detail", res.Detail,
+		"keyPreview", keyPreview(params.GetAPIKey(c.client.apiKey)))
+
 	if magnet == nil {
 		m, err := core.ParseMagnetLink(res.Data.Hash)
 		if err != nil {
