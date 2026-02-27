@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/MunifTanjim/stremthru/internal/chillstreams"
@@ -15,6 +16,14 @@ import (
 
 var chillstreamsClient *chillstreams.Client
 var chillstreamsClientInit bool
+
+// Track last pool key ID per user for change detection
+var lastPoolKeyByUser sync.Map // map[userUUID]poolKeyIDAndPreview
+
+type poolKeyTracker struct {
+	PoolKeyID  string
+	KeyPreview string // first 8 chars of actual key
+}
 
 func getChillstreamsClient() *chillstreams.Client {
 	if !chillstreamsClientInit {
@@ -89,6 +98,35 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 		// Inject pool key into store client
 		if resp.PoolKey != "" {
 			log.Debug("pool key received from chillstreams", "poolKey", resp.PoolKey, "poolKeyLength", len(resp.PoolKey), "poolKeyId", resp.PoolKeyID)
+
+			// KEY CHANGE DETECTION: Compare with last known key for this user
+			keyPreview := resp.PoolKey
+			if len(keyPreview) > 8 {
+				keyPreview = keyPreview[:8]
+			}
+			if prev, ok := lastPoolKeyByUser.Load(s.ChillstreamsAuth); ok {
+				prevTracker := prev.(poolKeyTracker)
+				if prevTracker.PoolKeyID != resp.PoolKeyID {
+					log.Warn("⚠️ POOL KEY CHANGED",
+						"userId", s.ChillstreamsAuth,
+						"previousKeyId", prevTracker.PoolKeyID,
+						"newKeyId", resp.PoolKeyID,
+						"previousKeyPreview", prevTracker.KeyPreview,
+						"newKeyPreview", keyPreview,
+						"requestPath", requestPath)
+				} else if prevTracker.KeyPreview != keyPreview {
+					log.Warn("⚠️ POOL KEY VALUE CHANGED (same ID, different key!)",
+						"userId", s.ChillstreamsAuth,
+						"poolKeyId", resp.PoolKeyID,
+						"previousKeyPreview", prevTracker.KeyPreview,
+						"newKeyPreview", keyPreview,
+						"requestPath", requestPath)
+				}
+			}
+			lastPoolKeyByUser.Store(s.ChillstreamsAuth, poolKeyTracker{
+				PoolKeyID:  resp.PoolKeyID,
+				KeyPreview: keyPreview,
+			})
 
 			switch client := s.Store.(type) {
 			case *torbox.StoreClient:
@@ -178,4 +216,3 @@ func (ud *UserDataStores) LogChillstreamsUsage(hash string, cached bool, bytes i
 		}(s.ChillstreamsAuth, s.PoolKeyID, hash, cached, bytes)
 	}
 }
-
