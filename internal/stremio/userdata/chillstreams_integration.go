@@ -142,6 +142,9 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 				client.SetAPIKey(resp.PoolKey)
 				s.AuthToken = resp.PoolKey // ✅ This is used by CheckMagnet
 
+				// Start keepalive to prevent TorBox inactivity timeout (~15 min)
+				client.StartKeepalive()
+
 				// Verify the key was set correctly
 				actualKey := client.GetAPIKey()
 				log.Info("💛 torpool pool key injected",

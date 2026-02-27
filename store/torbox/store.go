@@ -27,6 +27,8 @@ type StoreClient struct {
 	getUserCache      cache.Cache[store.User]
 	getMagnetCache    cache.Cache[store.GetMagnetData] // for downloaded magnets
 	generateLinkCache cache.Cache[store.GenerateLinkData]
+	keepaliveOnce     sync.Once
+	keepaliveStop     chan struct{}
 }
 
 func NewStoreClient(config *StoreClientConfig) *StoreClient {
@@ -73,6 +75,48 @@ func (c *StoreClient) SetAPIKey(apiKey string) {
 // GetAPIKey returns the current API key (for validation/logging)
 func (c *StoreClient) GetAPIKey() string {
 	return c.client.apiKey
+}
+
+// StartKeepalive starts a background goroutine that pings TorBox every 10 minutes
+// to prevent the API key from expiring due to inactivity timeout.
+// Safe to call multiple times — only starts once.
+func (c *StoreClient) StartKeepalive() {
+	c.keepaliveOnce.Do(func() {
+		c.keepaliveStop = make(chan struct{})
+		go c.keepaliveLoop()
+	})
+}
+
+func (c *StoreClient) keepaliveLoop() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+
+	log.Info("💓 TorBox keepalive started (10 min interval)")
+
+	for {
+		select {
+		case <-ticker.C:
+			apiKey := c.client.apiKey
+			if apiKey == "" {
+				log.Debug("💓 keepalive skip: no API key set")
+				continue
+			}
+			params := &GetUserParams{}
+			params.APIKey = apiKey
+			_, err := c.client.GetUser(params)
+			if err != nil {
+				log.Warn("💓 keepalive FAILED",
+					"keyPreview", keyPreview(apiKey),
+					"error", err)
+			} else {
+				log.Info("💓 keepalive OK",
+					"keyPreview", keyPreview(apiKey))
+			}
+		case <-c.keepaliveStop:
+			log.Info("💓 TorBox keepalive stopped")
+			return
+		}
+	}
 }
 
 func (c *StoreClient) getCachedGetUser(params *store.GetUserParams) *store.User {
