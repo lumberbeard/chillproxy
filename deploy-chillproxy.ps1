@@ -25,8 +25,10 @@ Write-Host "  Chillproxy Production Deployment" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Check if we're in the chillproxy directory
-$currentDir = Get-Location
+# Navigate to the chillproxy directory (script may be invoked from another repo)
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $scriptDir
+
 if (-not (Test-Path ".\internal\device\tracker.go")) {
     Write-Host "Error: Must be run from chillproxy repository root" -ForegroundColor Red
     exit 1
