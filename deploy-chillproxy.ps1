@@ -38,7 +38,7 @@ if (-not (Test-Path ".\go.mod")) {
 
 # Step 1: Commit and push local changes (unless skipped)
 if (-not $SkipCommit) {
-    Write-Host "[1/5] Checking for local changes..." -ForegroundColor Yellow
+    Write-Host "[1/6] Checking for local changes..." -ForegroundColor Yellow
 
     $status = git status --porcelain
     if ($status) {
@@ -77,12 +77,12 @@ if (-not $SkipCommit) {
     }
     Write-Host ""
 } else {
-    Write-Host "[1/5] Skipping commit (--SkipCommit flag)" -ForegroundColor Yellow
+    Write-Host "[1/6] Skipping commit (--SkipCommit flag)" -ForegroundColor Yellow
     Write-Host ""
 }
 
 # Step 2-5: SSH to production and deploy
-Write-Host "[2/5] Connecting to production server..." -ForegroundColor Yellow
+Write-Host "[2/6] Connecting to production server..." -ForegroundColor Yellow
 
 # Use a literal heredoc to avoid PowerShell interpolation issues
 # Pipe to ssh via stdin so quoting is never a problem
@@ -90,18 +90,22 @@ Write-Host "[2/5] Connecting to production server..." -ForegroundColor Yellow
 set -e
 
 echo ""
-echo "[3/5] Pulling latest chillproxy code..."
+echo "[3/6] Pulling latest chillproxy code..."
 cd ~/chillstreams-app/chillproxy
 git fetch origin
 git reset --hard origin/main
 echo "  Commit: $(git log --oneline -1)"
 
 echo ""
-echo "[4/5] Building Docker image (no cache)..."
+echo "[4/6] Building Docker image (no cache)..."
 docker build --no-cache -t ghcr.io/lumberbeard/chillproxy:latest . 2>&1
 
 echo ""
-echo "[5/5] Recreating chillproxy container..."
+echo "[5/6] Pushing image to GHCR (so PROD-DEPLOY won't overwrite with stale image)..."
+docker push ghcr.io/lumberbeard/chillproxy:latest 2>&1
+
+echo ""
+echo "[6/6] Recreating chillproxy container..."
 cd ~/chillstreams-app
 docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps chillproxy
 
