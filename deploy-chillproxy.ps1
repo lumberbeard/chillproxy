@@ -3,11 +3,12 @@
 .SYNOPSIS
     Deploy Chillproxy to production server
 .DESCRIPTION
-    This script commits and pushes local changes, then deploys to the production server by:
-    1. SSHing to chl server
-    2. Pulling latest changes
-    3. Building Docker image
-    4. Restarting the container
+    Run locally from your machine. This script:
+    1. Optionally commits and pushes local chillproxy changes
+    2. SSHes to the production server (chl)
+    3. Pulls latest code from GitHub
+    4. Builds Docker image on the server
+    5. Recreates the chillproxy container
 .EXAMPLE
     .\deploy-chillproxy.ps1
     .\deploy-chillproxy.ps1 -SkipCommit
@@ -25,12 +26,13 @@ Write-Host "  Chillproxy Production Deployment" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Navigate to the chillproxy directory (script may be invoked from another repo)
+# Navigate to the chillproxy directory (script may be invoked from chillstreams repo)
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
+Write-Host "  Working directory: $scriptDir" -ForegroundColor Gray
 
-if (-not (Test-Path ".\internal\device\tracker.go")) {
-    Write-Host "Error: Must be run from chillproxy repository root" -ForegroundColor Red
+if (-not (Test-Path ".\go.mod")) {
+    Write-Host "Error: Not in chillproxy repository root (go.mod not found)" -ForegroundColor Red
     exit 1
 }
 
@@ -44,7 +46,6 @@ if (-not $SkipCommit) {
         git status --short
         Write-Host ""
 
-        # Get commit message if not provided
         if (-not $CommitMessage) {
             $CommitMessage = Read-Host "  Enter commit message (or press Enter to skip commit)"
             if (-not $CommitMessage) {
@@ -55,68 +56,79 @@ if (-not $SkipCommit) {
 
         if ($CommitMessage) {
             Write-Host "  Committing changes..." -ForegroundColor Cyan
-            git add .
-            git commit -m "$CommitMessage`n`nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+            git add -A
+            git commit -m "$CommitMessage`n`nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
             Write-Host "  Pushing to origin..." -ForegroundColor Cyan
             git push
-            Write-Host "  ✓ Changes committed and pushed" -ForegroundColor Green
+            Write-Host "  Changes committed and pushed" -ForegroundColor Green
             Write-Host ""
         }
     } else {
-        Write-Host "  ✓ No uncommitted changes" -ForegroundColor Green
-        Write-Host ""
+        Write-Host "  No uncommitted changes" -ForegroundColor Green
     }
+
+    # Always ensure local commits are pushed
+    $unpushed = git log --oneline '@{u}..HEAD' 2>$null
+    if ($unpushed) {
+        Write-Host "  Pushing unpushed commits..." -ForegroundColor Cyan
+        git push
+        Write-Host "  Pushed" -ForegroundColor Green
+    }
+    Write-Host ""
 } else {
     Write-Host "[1/5] Skipping commit (--SkipCommit flag)" -ForegroundColor Yellow
     Write-Host ""
 }
 
-# Step 2: SSH to production and deploy
-Write-Host "[2/5] Connecting to production server (chl)..." -ForegroundColor Yellow
+# Step 2-5: SSH to production and deploy
+Write-Host "[2/5] Connecting to production server..." -ForegroundColor Yellow
 
-$deployScript = @"
+# Use a literal heredoc to avoid PowerShell interpolation issues
+# Pipe to ssh via stdin so quoting is never a problem
+@'
 set -e
 
 echo ""
-echo "[3/5] Pulling latest changes..."
+echo "[3/5] Pulling latest chillproxy code..."
 cd ~/chillstreams-app/chillproxy
-
-# Fetch and pull latest changes
 git fetch origin
 git reset --hard origin/main
+echo "  Commit: $(git log --oneline -1)"
 
 echo ""
-echo "[4/5] Building Docker image (without cache)..."
-docker build --no-cache -t ghcr.io/lumberbeard/chillproxy:latest .
+echo "[4/5] Building Docker image (no cache)..."
+docker build --no-cache -t ghcr.io/lumberbeard/chillproxy:latest . 2>&1
 
 echo ""
-echo "[5/5] Recreating container with new image..."
+echo "[5/5] Recreating chillproxy container..."
 cd ~/chillstreams-app
-
-# Recreate container using docker compose (will use locally tagged image)
 docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps chillproxy
 
 echo ""
-echo "Deployment complete!"
+echo "=== Deployment complete ==="
 echo ""
-echo "Checking container status..."
-docker ps --filter name=chillproxy --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
-
+sleep 3
+echo "Container status:"
+docker ps --filter name=chillproxy --format "table {{.Names}}\t{{.Status}}\t{{.CreatedAt}}"
+echo ""
+echo "Image build time:"
+docker image inspect ghcr.io/lumberbeard/chillproxy:latest --format "{{.Created}}"
 echo ""
 echo "Recent logs:"
-docker logs --tail 20 chillstreams-chillproxy
-"@
+docker logs --tail 15 chillstreams-chillproxy
+'@ | ssh chl "bash -s"
 
-# Pipe the script to SSH to avoid quoting issues
-$deployScript | ssh chl "bash -s"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "  Deployment FAILED (exit code $LASTEXITCODE)" -ForegroundColor Red
+    exit $LASTEXITCODE
+}
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
-Write-Host "  ✓ Deployment Successful!" -ForegroundColor Green
+Write-Host "  Deployment Successful!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "Next steps:" -ForegroundColor Cyan
-Write-Host "  - Monitor logs: ssh chl 'docker logs -f chillstreams-chillproxy'" -ForegroundColor Gray
-Write-Host "  - Check status: ssh chl 'docker ps | grep chillproxy'" -ForegroundColor Gray
+Write-Host "Monitor: ssh chl 'docker logs -f chillstreams-chillproxy'" -ForegroundColor Gray
 Write-Host ""
