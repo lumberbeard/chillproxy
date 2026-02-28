@@ -75,7 +75,7 @@ if (-not $SkipCommit) {
 # Step 2: SSH to production and deploy
 Write-Host "[2/5] Connecting to production server (chl)..." -ForegroundColor Yellow
 
-$deployScript = @'
+$deployScript = @"
 set -e
 
 echo ""
@@ -83,15 +83,12 @@ echo "[3/5] Pulling latest changes..."
 cd ~/chillstreams-app/chillproxy
 
 # Fetch and pull latest changes
-git fetch
-git pull
+git fetch origin
+git reset --hard origin/main
 
 echo ""
 echo "[4/5] Building Docker image (without cache)..."
-docker build --no-cache -t chillproxy:latest .
-
-# Tag with GHCR name so docker-compose uses local build
-docker tag chillproxy:latest ghcr.io/lumberbeard/chillproxy:latest
+docker build --no-cache -t ghcr.io/lumberbeard/chillproxy:latest .
 
 echo ""
 echo "[5/5] Recreating container with new image..."
@@ -101,17 +98,18 @@ cd ~/chillstreams-app
 docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps chillproxy
 
 echo ""
-echo "✓ Deployment complete!"
+echo "Deployment complete!"
 echo ""
 echo "Checking container status..."
-docker ps | grep chillstreams-chillproxy
+docker ps --filter name=chillproxy --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
 
 echo ""
 echo "Recent logs:"
-docker logs --tail 30 chillstreams-chillproxy
-'@
+docker logs --tail 20 chillstreams-chillproxy
+"@
 
-ssh chl "bash -c '$deployScript'"
+# Pipe the script to SSH to avoid quoting issues
+$deployScript | ssh chl "bash -s"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
