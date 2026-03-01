@@ -87,11 +87,45 @@ func (c *StoreClient) StartKeepalive() {
 	})
 }
 
+// Old keepalive using /api/user/me — disabled to test if this endpoint triggers key rotation
+// func (c *StoreClient) keepaliveLoopOld() {
+// 	ticker := time.NewTicker(10 * time.Minute)
+// 	defer ticker.Stop()
+//
+// 	log.Info("💓 TorBox keepalive started (10 min interval)")
+//
+// 	for {
+// 		select {
+// 		case <-ticker.C:
+// 			apiKey := c.client.apiKey
+// 			if apiKey == "" {
+// 				log.Debug("💓 keepalive skip: no API key set")
+// 				continue
+// 			}
+// 			params := &GetUserParams{}
+// 			params.APIKey = apiKey
+// 			_, err := c.client.GetUser(params)
+// 			if err != nil {
+// 				log.Warn("💓 keepalive FAILED",
+// 					"keyPreview", keyPreview(apiKey),
+// 					"error", err)
+// 			} else {
+// 				log.Info("💓 keepalive OK",
+// 					"keyPreview", keyPreview(apiKey))
+// 			}
+// 		case <-c.keepaliveStop:
+// 			log.Info("💓 TorBox keepalive stopped")
+// 			return
+// 		}
+// 	}
+// }
+
+// New keepalive using /api/torrents/checkcached with a dummy hash — lighter endpoint
 func (c *StoreClient) keepaliveLoop() {
 	ticker := time.NewTicker(10 * time.Minute)
 	defer ticker.Stop()
 
-	log.Info("💓 TorBox keepalive started (10 min interval)")
+	log.Info("💓 TorBox keepalive v2 started (10 min interval, using checkcached)")
 
 	for {
 		select {
@@ -101,19 +135,22 @@ func (c *StoreClient) keepaliveLoop() {
 				log.Debug("💓 keepalive skip: no API key set")
 				continue
 			}
-			params := &GetUserParams{}
+			params := &CheckTorrentsCachedParams{
+				Hashes:    []string{"0000000000000000000000000000000000000000"},
+				ListFiles: false,
+			}
 			params.APIKey = apiKey
-			_, err := c.client.GetUser(params)
+			_, err := c.client.CheckTorrentsCached(params)
 			if err != nil {
-				log.Warn("💓 keepalive FAILED",
+				log.Warn("💓 keepalive-v2 FAILED",
 					"keyPreview", keyPreview(apiKey),
 					"error", err)
 			} else {
-				log.Info("💓 keepalive OK",
+				log.Info("💓 keepalive-v2 OK",
 					"keyPreview", keyPreview(apiKey))
 			}
 		case <-c.keepaliveStop:
-			log.Info("💓 TorBox keepalive stopped")
+			log.Info("💓 TorBox keepalive-v2 stopped")
 			return
 		}
 	}
