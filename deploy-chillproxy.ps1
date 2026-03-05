@@ -84,9 +84,8 @@ if (-not $SkipCommit) {
 # Step 2-5: SSH to production and deploy
 Write-Host "[2/6] Connecting to production server..." -ForegroundColor Yellow
 
-# Use a literal heredoc to avoid PowerShell interpolation issues
-# Pipe to ssh via stdin so quoting is never a problem
-@'
+# Build the remote script as a string, strip Windows \r line endings before piping to bash
+$remoteScript = @'
 set -e
 
 echo ""
@@ -121,7 +120,11 @@ docker image inspect ghcr.io/lumberbeard/chillproxy:latest --format "{{.Created}
 echo ""
 echo "Recent logs:"
 docker logs --tail 15 chillstreams-chillproxy
-'@ | ssh chl "bash -s"
+'@
+
+# Strip \r (Windows CRLF) so bash on Linux doesn't choke
+$remoteScript = $remoteScript -replace "`r", ""
+$remoteScript | ssh chl "bash -s"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
