@@ -80,11 +80,9 @@ func (c *StoreClient) GetAPIKey() string {
 // StartKeepalive starts a background goroutine that pings TorBox every 10 minutes
 // to prevent the API key from expiring due to inactivity timeout.
 // Safe to call multiple times — only starts once.
+// DISABLED: Keepalive pings don't actually prevent key death. Disable to reduce noise.
 func (c *StoreClient) StartKeepalive() {
-	c.keepaliveOnce.Do(func() {
-		c.keepaliveStop = make(chan struct{})
-		go c.keepaliveLoop()
-	})
+	log.Info("💓 TorBox keepalive DISABLED — skipping")
 }
 
 // Old keepalive using /api/user/me — disabled to test if this endpoint triggers key rotation

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/MunifTanjim/stremthru/core"
 	"github.com/MunifTanjim/stremthru/internal/chillstreams"
 	"github.com/MunifTanjim/stremthru/internal/config"
 	"github.com/MunifTanjim/stremthru/internal/device"
@@ -77,9 +78,12 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 		defer cancel()
 
 		resp, err := client.GetPoolKey(ctx, chillstreams.GetPoolKeyRequest{
-			UserID:   s.ChillstreamsAuth,
-			DeviceID: deviceID,
-			Action:   "init",
+			UserID:         s.ChillstreamsAuth,
+			DeviceID:       deviceID,
+			Action:         "init",
+			ClientIP:       core.GetRequestIP(r),
+			UserAgent:      r.Header.Get("User-Agent"),
+			AcceptLanguage: r.Header.Get("Accept-Language"),
 		})
 
 		if err != nil {

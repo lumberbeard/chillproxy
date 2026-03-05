@@ -73,6 +73,10 @@ type GetPoolKeyRequest struct {
 	DeviceID string `json:"deviceId"`
 	Action   string `json:"action"`
 	Hash     string `json:"hash"`
+	// Observation fields for device tracking analysis (Phase 1)
+	ClientIP       string `json:"clientIp,omitempty"`
+	UserAgent      string `json:"userAgent,omitempty"`
+	AcceptLanguage string `json:"acceptLanguage,omitempty"`
 }
 
 type GetPoolKeyResponse struct {
