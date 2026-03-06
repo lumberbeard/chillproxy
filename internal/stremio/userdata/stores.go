@@ -27,9 +27,10 @@ func (sc StoreCode) IsP2P() bool {
 }
 
 type Store struct {
-	Code  StoreCode `json:"c"`
-	Token string    `json:"t"`
-	Auth  string    `json:"auth,omitempty"` // NEW: Chillstreams user UUID
+	Code     StoreCode `json:"c"`
+	Token    string    `json:"t"`
+	Auth     string    `json:"auth,omitempty"` // Chillstreams user UUID
+	DeviceID string    `json:"did,omitempty"`  // Device UUID from manifest URL
 }
 
 type UserDataStores struct {
@@ -127,7 +128,8 @@ func (ud *UserDataStores) Prepare(ctx *context.StoreContext) (err error, errFiel
 			stores[i] = resolvedStore{
 				Store:            shared.GetStore(string(store.StoreCode(s.Code).Name())),
 				AuthToken:        s.Token,
-				ChillstreamsAuth: s.Auth, // Store for later resolution
+				ChillstreamsAuth: s.Auth,
+				DeviceID:         s.DeviceID,
 			}
 		}
 		ud.stores = stores
@@ -165,6 +167,7 @@ type resolvedStore struct {
 	Store            store.Store
 	AuthToken        string
 	ChillstreamsAuth string // Chillstreams user UUID (if using auth)
+	DeviceID         string // Device UUID from manifest URL
 	PoolKeyID        string // Pool key ID for usage logging
 }
 

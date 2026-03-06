@@ -58,8 +58,6 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 	}
 
 	log.Info("chillstreams client ready")
-	deviceID := device.GenerateDeviceID(r)
-	log.Debug("device id generated", "deviceId", deviceID)
 
 	storeCount := 0
 	for i := range ud.stores {
@@ -70,6 +68,13 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 			log.Debug("store skipped - no chillstreams auth", "store", s.Store.GetName(), "index", i)
 			continue // No Chillstreams auth for this store
 		}
+
+		// Use device UUID from store config if available, otherwise fall back to generated ID
+		deviceID := device.GenerateDeviceID(r) // "default-device" fallback
+		if s.DeviceID != "" {
+			deviceID = s.DeviceID
+		}
+		log.Debug("device id resolved", "deviceId", deviceID, "fromStore", s.DeviceID != "")
 
 		log.Info("requesting chillstreams pool key", "userId", s.ChillstreamsAuth, "store", s.Store.GetName(), "requestPath", requestPath, "requestMethod", requestMethod)
 
