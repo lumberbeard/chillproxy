@@ -74,7 +74,7 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 		if s.DeviceID != "" {
 			deviceID = s.DeviceID
 		}
-		log.Info("device id resolved", "deviceId", deviceID, "fromStore", s.DeviceID != "", "storeDeviceID", s.DeviceID)
+		log.Debug("device id resolved", "deviceId", deviceID, "fromStore", s.DeviceID != "")
 
 		log.Info("requesting chillstreams pool key", "userId", s.ChillstreamsAuth, "store", s.Store.GetName(), "requestPath", requestPath, "requestMethod", requestMethod)
 
