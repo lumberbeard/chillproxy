@@ -1010,8 +1010,5 @@ func createDeviceLimitStream(err error) stremio.Stream {
 		Name:        "[⚠️ Device Limit]",
 		Title:       "You have reached your device limit.\nPlease remove a device at app.chillstreams.com",
 		ExternalURL: "https://app.chillstreams.com/account",
-		BehaviorHints: &stremio.StreamBehaviorHints{
-			NotWebReady: true,
-		},
 	}
 }
