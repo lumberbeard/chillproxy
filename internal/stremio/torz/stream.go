@@ -741,6 +741,13 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 	ctx, err := ud.GetRequestContext(r)
 	if err != nil {
+		// Check if this is a device limit or auth error that should be shown to the user
+		if isDeviceLimitError(err) {
+			SendResponse(w, r, 200, &stremio.StreamHandlerResponse{
+				Streams: []stremio.Stream{createDeviceLimitStream(err)},
+			})
+			return
+		}
 		shared.ErrorBadRequest(r, "failed to get request context: "+err.Error()).Send(w, r)
 		return
 	}
@@ -982,4 +989,29 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	SendResponse(w, r, 200, &stremio.StreamHandlerResponse{
 		Streams: streams,
 	})
+}
+
+// isDeviceLimitError checks if an error indicates a device limit or authentication failure
+// that should be shown to the user as a visible stream
+func isDeviceLimitError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "device") ||
+		strings.Contains(errMsg, "maximum") ||
+		strings.Contains(errMsg, "not allowed") ||
+		strings.Contains(errMsg, "authentication failed")
+}
+
+// createDeviceLimitStream creates a fake stream that informs the user about device limits
+func createDeviceLimitStream(err error) stremio.Stream {
+	return stremio.Stream{
+		Name:        "[⚠️ Device Limit]",
+		Title:       "You have reached your device limit.\nPlease remove a device at app.chillstreams.com",
+		ExternalURL: "https://app.chillstreams.com/account",
+		BehaviorHints: &stremio.StreamBehaviorHints{
+			NotWebReady: true,
+		},
+	}
 }
