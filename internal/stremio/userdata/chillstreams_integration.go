@@ -77,11 +77,21 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 
+		// For device observation: prefer public IP, fall back to X-Forwarded-For or RemoteAddr
+		clientIP := core.GetRequestIP(r)
+		if clientIP == "" {
+			if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+				clientIP = xff
+			} else {
+				clientIP = r.RemoteAddr
+			}
+		}
+
 		resp, err := client.GetPoolKey(ctx, chillstreams.GetPoolKeyRequest{
 			UserID:         s.ChillstreamsAuth,
 			DeviceID:       deviceID,
 			Action:         "init",
-			ClientIP:       core.GetRequestIP(r),
+			ClientIP:       clientIP,
 			UserAgent:      r.Header.Get("User-Agent"),
 			AcceptLanguage: r.Header.Get("Accept-Language"),
 		})
