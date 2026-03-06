@@ -1007,8 +1007,8 @@ func isDeviceLimitError(err error) bool {
 // createDeviceLimitStream creates a fake stream that informs the user about device limits
 func createDeviceLimitStream(err error) stremio.Stream {
 	return stremio.Stream{
-		Name:        "[⚠️ Device Limit]",
-		Title:       "You have reached your device limit.\nPlease remove a device at app.chillstreams.com",
-		ExternalURL: "https://app.chillstreams.com/account",
+		Name:  "[⚠️ Device Limit]",
+		Title: "You have reached your device limit.\nPlease remove a device at app.chillstreams.com",
+		URL:   "https://app.chillstreams.com/account",
 	}
 }
