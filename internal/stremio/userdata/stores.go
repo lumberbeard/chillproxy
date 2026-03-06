@@ -27,10 +27,13 @@ func (sc StoreCode) IsP2P() bool {
 }
 
 type Store struct {
-	Code     StoreCode `json:"c"`
-	Token    string    `json:"t"`
-	Auth     string    `json:"auth,omitempty"` // Chillstreams user UUID
-	DeviceID string    `json:"did,omitempty"`  // Device UUID from manifest URL
+	Code       StoreCode `json:"c"`
+	Token      string    `json:"t"`
+	Auth       string    `json:"auth,omitempty"` // Chillstreams user UUID
+	DeviceID   string    `json:"did,omitempty"`  // Device UUID from manifest URL
+	StremioUA  string    `json:"sua,omitempty"`  // Real Stremio User-Agent forwarded from ChillStreams
+	StremioAL  string    `json:"sal,omitempty"`  // Real Accept-Language forwarded from ChillStreams
+	StremioIP  string    `json:"sip,omitempty"`  // Real client IP forwarded from ChillStreams
 }
 
 type UserDataStores struct {
@@ -130,6 +133,9 @@ func (ud *UserDataStores) Prepare(ctx *context.StoreContext) (err error, errFiel
 				AuthToken:        s.Token,
 				ChillstreamsAuth: s.Auth,
 				DeviceID:         s.DeviceID,
+				StremioUA:        s.StremioUA,
+				StremioAL:        s.StremioAL,
+				StremioIP:        s.StremioIP,
 			}
 		}
 		ud.stores = stores
@@ -168,6 +174,9 @@ type resolvedStore struct {
 	AuthToken        string
 	ChillstreamsAuth string // Chillstreams user UUID (if using auth)
 	DeviceID         string // Device UUID from manifest URL
+	StremioUA        string // Real Stremio User-Agent forwarded from ChillStreams
+	StremioAL        string // Real Accept-Language forwarded from ChillStreams
+	StremioIP        string // Real client IP forwarded from ChillStreams
 	PoolKeyID        string // Pool key ID for usage logging
 }
 

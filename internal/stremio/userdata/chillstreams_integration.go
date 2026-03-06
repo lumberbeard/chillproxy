@@ -82,14 +82,27 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 
-		// For device observation: prefer public IP, fall back to X-Forwarded-For or RemoteAddr
-		clientIP := core.GetRequestIP(r)
+		// Use real Stremio client IP forwarded from ChillStreams, fall back to request IP
+		clientIP := s.StremioIP
 		if clientIP == "" {
-			if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-				clientIP = xff
-			} else {
-				clientIP = r.RemoteAddr
+			clientIP = core.GetRequestIP(r)
+			if clientIP == "" {
+				if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+					clientIP = xff
+				} else {
+					clientIP = r.RemoteAddr
+				}
 			}
+		}
+
+		// Use real Stremio UA/Accept-Language forwarded from ChillStreams, fall back to request headers
+		userAgent := s.StremioUA
+		if userAgent == "" {
+			userAgent = r.Header.Get("User-Agent")
+		}
+		acceptLanguage := s.StremioAL
+		if acceptLanguage == "" {
+			acceptLanguage = r.Header.Get("Accept-Language")
 		}
 
 		resp, err := client.GetPoolKey(ctx, chillstreams.GetPoolKeyRequest{
@@ -97,8 +110,8 @@ func (ud *UserDataStores) InitializeStoresWithChillstreams(r *http.Request, log 
 			DeviceID:       deviceID,
 			Action:         "init",
 			ClientIP:       clientIP,
-			UserAgent:      r.Header.Get("User-Agent"),
-			AcceptLanguage: r.Header.Get("Accept-Language"),
+			UserAgent:      userAgent,
+			AcceptLanguage: acceptLanguage,
 		})
 
 		if err != nil {
